@@ -48,7 +48,7 @@ define commit_and_tag
 	cd $(ROOT_DIR) && git commit -m "chore(release): @aiready/$(SPOKE) v$$version"; \
 	tag_name="$(SPOKE)-v$$version"; \
 	$(call log_step,Tagging $$tag_name...); \
-	cd $(ROOT_DIR) && git tag -a "$$tag_name" -m "Release @aiready/$(SPOKE) v$$version"; \
+	cd $(ROOT_DIR) && git tag -f -a "$$tag_name" -m "Release @aiready/$(SPOKE) v$$version"; \
 	$(call log_success,Committed and tagged $$tag_name)
 endef
 
@@ -216,7 +216,7 @@ release-all: ## Release all spokes: TYPE=patch|minor|major (excludes landing)
 		exit 1; \
 	fi; \
 	$(call log_step,Phase 1: Version bumping all spokes...); \
-	for spoke in $(CORE_SPOKE) $(MIDDLE_SPOKES) $(CLI_SPOKE); do \
+	for spoke in $(CORE_SPOKE) $(MIDDLE_SPOKES) vscode-extension $(CLI_SPOKE); do \
 		$(call log_info,Bumping @aiready/$$spoke...); \
 		$(MAKE) -C $(ROOT_DIR) $$bump_target SPOKE=$$spoke || exit 1; \
 		$(call log_success,Version bumped for @aiready/$$spoke); \
@@ -226,11 +226,11 @@ release-all: ## Release all spokes: TYPE=patch|minor|major (excludes landing)
 	cd $(ROOT_DIR) && git add packages/*/package.json || true; \
 	cd $(ROOT_DIR) && git commit -m "chore(release): version bumps across spokes" || $(call log_info,No changes to commit); \
 	$(call log_step,Tagging each spoke...); \
-	for spoke in $(CORE_SPOKE) $(MIDDLE_SPOKES) $(CLI_SPOKE); do \
+	for spoke in $(CORE_SPOKE) $(MIDDLE_SPOKES) vscode-extension $(CLI_SPOKE); do \
 		version=$$(node -p "require('$(ROOT_DIR)/packages/$$spoke/package.json').version"); \
 		tag_name="$$spoke-v$$version"; \
 		$(call log_step,Tagging $$tag_name...); \
-		cd $(ROOT_DIR) && git tag -a "$$tag_name" -m "Release @aiready/$$spoke v$$version" || true; \
+		cd $(ROOT_DIR) && git tag -f -a "$$tag_name" -m "Release @aiready/$$spoke v$$version" || true; \
 	done; \
 	$(call log_step,Phase 3: Building workspace ONCE...); \
 	$(MAKE) -C $(ROOT_DIR) build || { \
@@ -265,6 +265,9 @@ release-all: ## Release all spokes: TYPE=patch|minor|major (excludes landing)
 	$(MAKE) -C $(ROOT_DIR) npm-publish SPOKE=$(CLI_SPOKE) || exit 1; \
 	$(MAKE) -C $(ROOT_DIR) publish SPOKE=$(CLI_SPOKE) OWNER=$(OWNER) || exit 1; \
 	$(call log_success,Published @aiready/$(CLI_SPOKE)); \
+	$(call log_step,Phase 7.5: Syncing VS Code extension... (Not on NPM)); \
+	$(MAKE) -C $(ROOT_DIR) publish SPOKE=vscode-extension OWNER=$(OWNER) || exit 1; \
+	$(call log_success,Synced VS Code extension to GitHub); \
 	$(call log_step,Phase 8: Pushing all changes to monorepo...); \
 	cd $(ROOT_DIR) && git push origin $(TARGET_BRANCH) --follow-tags; \
 	$(call log_success,🎉 All spokes released successfully in proper order: core → middle → cli)
