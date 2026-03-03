@@ -31,12 +31,14 @@ include $(MAKEFILE_DIR)/Makefile.shared.mk
 include $(MAKEFILE_DIR)/Makefile.publish.mk
 
 .PHONY: check-changes check-dependency-updates check-dependency-updates release-one release-all release-dev release-status \
-	release-landing version-landing-patch version-landing-minor version-landing-major help
+	release-landing release-platform version-landing-patch version-landing-minor version-landing-major \
+	version-platform-patch version-platform-minor version-platform-major help
 
 # Default owner and branch (can be overridden)
 OWNER ?= caopengau
 TARGET_BRANCH ?= main
 LANDING_DIR := $(ROOT_DIR)/landing
+PLATFORM_DIR := $(ROOT_DIR)/platform
 
 # Internal helper: resolve version bump target name from TYPE
 define bump_target_for_type
@@ -67,6 +69,18 @@ define commit_and_tag_landing
 	$(call log_success,Committed and tagged $$tag_name)
 endef
 
+# Internal: commit + tag for platform after version bump
+define commit_and_tag_platform
+	version=$$(node -p "require('$(PLATFORM_DIR)/package.json').version"); \
+	$(call log_step,Committing @aiready/platform v$$version...); \
+	cd $(ROOT_DIR) && git add platform/package.json; \
+	cd $(ROOT_DIR) && git commit -m "chore(release): @aiready/platform v$$version"; \
+	tag_name="platform-v$$version"; \
+	$(call log_step,Tagging $$tag_name...); \
+	cd $(ROOT_DIR) && git tag -a "$$tag_name" -m "Release @aiready/platform v$$version"; \
+	$(call log_success,Committed and tagged $$tag_name)
+endef
+
 ##@ Landing Version Management
 
 version-landing-patch: ## Bump landing version (patch)
@@ -83,6 +97,23 @@ version-landing-major: ## Bump landing version (major)
 	@$(call log_step,Bumping @aiready/landing version (major)...)
 	@cd $(LANDING_DIR) && npm version major --no-git-tag-version
 	@$(call log_success,Landing version bumped to $$(node -p "require('$(LANDING_DIR)/package.json').version"))
+
+##@ Platform Version Management
+
+version-platform-patch: ## Bump platform version (patch)
+	@$(call log_step,Bumping @aiready/platform version (patch)...)
+	@cd $(PLATFORM_DIR) && npm version patch --no-git-tag-version
+	@$(call log_success,Platform version bumped to $$(node -p "require('$(PLATFORM_DIR)/package.json').version"))
+
+version-platform-minor: ## Bump platform version (minor)
+	@$(call log_step,Bumping @aiready/platform version (minor)...)
+	@cd $(PLATFORM_DIR) && npm version minor --no-git-tag-version
+	@$(call log_success,Platform version bumped to $$(node -p "require('$(PLATFORM_DIR)/package.json').version"))
+
+version-platform-major: ## Bump platform version (major)
+	@$(call log_step,Bumping @aiready/platform version (major)...)
+	@cd $(PLATFORM_DIR) && npm version major --no-git-tag-version
+	@$(call log_success,Platform version bumped to $$(node -p "require('$(PLATFORM_DIR)/package.json').version"))
 
 ##@ Landing Release
 
@@ -122,6 +153,36 @@ release-landing: ## Release landing page: TYPE=patch|minor|major
 	$(call log_step,Pushing monorepo branch and tags...); \
 	cd $(ROOT_DIR) && git push origin $(TARGET_BRANCH) --follow-tags; \
 	$(call log_success,Release finished for @aiready/landing)
+
+##@ Platform Release
+
+release-platform: ## Release platform: TYPE=patch|minor|major
+	@if [ -z "$(TYPE)" ]; then \
+		$(call log_error,TYPE parameter required. Usage: make $@ TYPE=minor); \
+		exit 1; \
+	fi
+	@bump_target="version-platform-$(TYPE)"; \
+	if [ "$(TYPE)" != "patch" ] && [ "$(TYPE)" != "minor" ] && [ "$(TYPE)" != "major" ]; then \
+		$(call log_error,Invalid TYPE '$(TYPE)'. Expected patch|minor|major); \
+		exit 1; \
+	fi; \
+	$(MAKE) -C $(ROOT_DIR) $$bump_target; \
+	$(call log_success,Version bump complete for @aiready/platform); \
+	$(call commit_and_tag_platform); \
+	$(call log_step,Building and deploying platform to production...); \
+	$(MAKE) -C $(ROOT_DIR) deploy-platform-prod || { \
+		$(call log_error,Production deployment failed. Aborting release.); \
+		$(call log_warning,Version was bumped and tagged locally. Run 'git reset --hard HEAD~1 && git tag -d platform-v'$$(node -p "require('$(PLATFORM_DIR)/package.json').version") to undo.); \
+		exit 1; \
+	}; \
+	$(call log_success,Platform production deployment complete); \
+	$(call log_step,Verifying deployment...); \
+	$(MAKE) -C $(ROOT_DIR) platform-verify || { \
+		$(call log_warning,Deployment verification failed - platform may still be deploying); \
+	}; \
+	$(call log_step,Pushing monorepo branch and tags...); \
+	cd $(ROOT_DIR) && git push origin $(TARGET_BRANCH) --follow-tags; \
+	$(call log_success,Release finished for @aiready/platform)
 
 ##@ Package Release
 
