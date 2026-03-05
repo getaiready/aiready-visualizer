@@ -14,23 +14,27 @@ test.describe('Page Content', () => {
       page.getByText('agent prompt', { exact: false }).first()
     ).toBeVisible();
 
-    // Navigation links
+    // Navigation links (targeting header specifically)
+    const nav = page.getByRole('navigation');
     await expect(
-      page.getByRole('link', { name: 'Docs', exact: true })
+      nav.getByRole('link', { name: 'Docs', exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Blog', exact: true })
+      nav.getByRole('link', { name: 'Blog', exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole('link', { name: 'Unified CLI', exact: true })
+      nav.getByRole('link', { name: 'Unified CLI', exact: true })
     ).toBeVisible();
   });
 
   test('navigation works', async ({ page }) => {
     await page.goto('/');
 
-    // Click Blog
-    await page.getByRole('link', { name: 'Blog', exact: true }).click();
+    // Click Blog in header
+    await page
+      .getByRole('navigation')
+      .getByRole('link', { name: 'Blog', exact: true })
+      .click();
     await expect(page).toHaveURL(/\/blog/);
     // Updated text to match BlogPageClient.tsx
     await expect(page.getByText('Practical insights on making')).toBeVisible();
