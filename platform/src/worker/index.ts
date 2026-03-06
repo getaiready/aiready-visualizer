@@ -103,7 +103,11 @@ export async function handler(event: SQSEvent) {
           'deps-health',
         ],
         progressCallback: (event: any) => {
-          console.log(`[ScanWorker] Tool ${event.tool} completed`);
+          if (event.message) {
+            console.log(`[ScanWorker] [${event.tool}] ${event.message}`);
+          } else {
+            console.log(`[ScanWorker] Tool ${event.tool} completed`);
+          }
         },
       } as any);
 
