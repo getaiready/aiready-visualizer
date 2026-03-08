@@ -9,6 +9,12 @@
 
 The "Verify" loop is the most expensive part of the AI agent workflow. Codebases with high global state, missing dependency injection, or poor test coverage force agents into long, expensive retry loops. The **Testability Index** quantifies these frictions.
 
+### Language Support
+
+- **Full Support:** TypeScript, JavaScript, Python, Java, Go, C#
+- **Capabilities:** Purity analysis, global state detection, DI pattern recognition.
+  toxicology
+
 ## 🏛️ Architecture
 
 ```

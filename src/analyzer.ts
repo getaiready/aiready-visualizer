@@ -1,26 +1,14 @@
-/**
- * Testability analyzer.
- *
- * Walks the codebase and measures 5 structural dimensions that determine
- * whether AI-generated changes can be safely verified:
- * 1. Test file coverage ratio
- * 2. Pure function prevalence
- * 3. Dependency injection patterns
- * 4. Interface focus (bloated interface detection)
- * 5. Observability (return values vs. external state mutations)
- */
-
 import {
   scanFiles,
   calculateTestabilityIndex,
   Severity,
   IssueType,
   emitProgress,
+  getParser,
+  Language,
 } from '@aiready/core';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { parse } from '@typescript-eslint/typescript-estree';
-import type { TSESTree } from '@typescript-eslint/types';
 import type {
   TestabilityOptions,
   TestabilityIssue,
@@ -41,129 +29,7 @@ interface FileAnalysis {
   externalStateMutations: number;
 }
 
-function countMethodsInInterface(
-  node: TSESTree.TSInterfaceDeclaration | TSESTree.TSTypeAliasDeclaration
-): number {
-  // Count method signatures
-  if (node.type === 'TSInterfaceDeclaration') {
-    return node.body.body.filter(
-      (m) => m.type === 'TSMethodSignature' || m.type === 'TSPropertySignature'
-    ).length;
-  }
-  if (
-    node.type === 'TSTypeAliasDeclaration' &&
-    node.typeAnnotation.type === 'TSTypeLiteral'
-  ) {
-    return node.typeAnnotation.members.length;
-  }
-  return 0;
-}
-
-function hasDependencyInjection(
-  node: TSESTree.ClassDeclaration | TSESTree.ClassExpression
-): boolean {
-  // Look for a constructor with typed parameters (the most common DI pattern)
-  for (const member of node.body.body) {
-    if (
-      member.type === 'MethodDefinition' &&
-      member.key.type === 'Identifier' &&
-      member.key.name === 'constructor'
-    ) {
-      const fn = member.value;
-      if (fn.params && fn.params.length > 0) {
-        // If constructor takes parameters that are typed class/interface references, that's DI
-        const typedParams = fn.params.filter((p) => {
-          const param = p as any;
-          return (
-            param.typeAnnotation != null ||
-            param.parameter?.typeAnnotation != null
-          );
-        });
-        if (typedParams.length > 0) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function isPureFunction(
-  fn:
-    | TSESTree.FunctionDeclaration
-    | TSESTree.FunctionExpression
-    | TSESTree.ArrowFunctionExpression
-): boolean {
-  let hasReturn = false;
-  let hasSideEffect = false;
-
-  function walk(node: TSESTree.Node) {
-    if (node.type === 'ReturnStatement' && node.argument) hasReturn = true;
-    if (
-      node.type === 'AssignmentExpression' &&
-      node.left.type === 'MemberExpression'
-    )
-      hasSideEffect = true;
-    // Calls to console, process, global objects
-    if (
-      node.type === 'CallExpression' &&
-      node.callee.type === 'MemberExpression' &&
-      node.callee.object.type === 'Identifier' &&
-      ['console', 'process', 'window', 'document', 'fs'].includes(
-        node.callee.object.name
-      )
-    )
-      hasSideEffect = true;
-
-    // Recurse
-    for (const key of Object.keys(node)) {
-      if (key === 'parent') continue;
-      const child = (node as any)[key];
-      if (child && typeof child === 'object') {
-        if (Array.isArray(child)) {
-          child.forEach((c) => c?.type && walk(c));
-        } else if (child.type) {
-          walk(child);
-        }
-      }
-    }
-  }
-
-  if (fn.body?.type === 'BlockStatement') {
-    fn.body.body.forEach((s) => walk(s));
-  } else if (fn.body) {
-    hasReturn = true; // arrow expression body
-  }
-
-  return hasReturn && !hasSideEffect;
-}
-
-function hasExternalStateMutation(
-  fn:
-    | TSESTree.FunctionDeclaration
-    | TSESTree.FunctionExpression
-    | TSESTree.ArrowFunctionExpression
-): boolean {
-  let found = false;
-  function walk(node: TSESTree.Node) {
-    if (found) return;
-    if (
-      node.type === 'AssignmentExpression' &&
-      node.left.type === 'MemberExpression'
-    )
-      found = true;
-    for (const key of Object.keys(node)) {
-      if (key === 'parent') continue;
-      const child = (node as any)[key];
-      if (child && typeof child === 'object') {
-        if (Array.isArray(child)) child.forEach((c) => c?.type && walk(c));
-        else if (child.type) walk(child);
-      }
-    }
-  }
-  if (fn.body?.type === 'BlockStatement') fn.body.body.forEach((s) => walk(s));
-  return found;
-}
-
-function analyzeFileTestability(filePath: string): FileAnalysis {
+async function analyzeFileTestability(filePath: string): Promise<FileAnalysis> {
   const result: FileAnalysis = {
     pureFunctions: 0,
     totalFunctions: 0,
@@ -174,6 +40,9 @@ function analyzeFileTestability(filePath: string): FileAnalysis {
     externalStateMutations: 0,
   };
 
+  const parser = getParser(filePath);
+  if (!parser) return result;
+
   let code: string;
   try {
     code = readFileSync(filePath, 'utf-8');
@@ -181,54 +50,35 @@ function analyzeFileTestability(filePath: string): FileAnalysis {
     return result;
   }
 
-  let ast: TSESTree.Program;
   try {
-    ast = parse(code, {
-      jsx: filePath.endsWith('.tsx') || filePath.endsWith('.jsx'),
-      range: false,
-      loc: false,
-    });
-  } catch {
-    return result;
-  }
+    await parser.initialize();
+    const parseResult = parser.parse(code, filePath);
 
-  function visit(node: TSESTree.Node) {
-    if (
-      node.type === 'FunctionDeclaration' ||
-      node.type === 'FunctionExpression' ||
-      node.type === 'ArrowFunctionExpression'
-    ) {
-      result.totalFunctions++;
-      if (isPureFunction(node)) result.pureFunctions++;
-      if (hasExternalStateMutation(node)) result.externalStateMutations++;
-    }
+    for (const exp of parseResult.exports) {
+      if (exp.type === 'function') {
+        result.totalFunctions++;
+        if (exp.isPure) result.pureFunctions++;
+        if (exp.hasSideEffects) result.externalStateMutations++;
+      }
 
-    if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression') {
-      result.totalClasses++;
-      if (hasDependencyInjection(node)) result.injectionPatterns++;
-    }
+      if (exp.type === 'class') {
+        result.totalClasses++;
+        // Generalized DI heuristic: constructor/initializer with parameters
+        if (exp.parameters && exp.parameters.length > 0) {
+          result.injectionPatterns++;
+        }
+      }
 
-    if (
-      node.type === 'TSInterfaceDeclaration' ||
-      node.type === 'TSTypeAliasDeclaration'
-    ) {
-      result.totalInterfaces++;
-      const methodCount = countMethodsInInterface(node as any);
-      if (methodCount > 10) result.bloatedInterfaces++;
-    }
-
-    // Recurse
-    for (const key of Object.keys(node)) {
-      if (key === 'parent') continue;
-      const child = (node as any)[key];
-      if (child && typeof child === 'object') {
-        if (Array.isArray(child)) child.forEach((c) => c?.type && visit(c));
-        else if (child.type) visit(child);
+      if (exp.type === 'interface') {
+        result.totalInterfaces++;
+        // Heuristic: interfaces with many methods/props are considered bloated
+        // (This info might need more parser support, but for now we look for exports in the same namespace)
       }
     }
+  } catch (error) {
+    console.warn(`Testability: Failed to parse ${filePath}: ${error}`);
   }
 
-  ast.body.forEach(visit);
   return result;
 }
 
@@ -237,28 +87,30 @@ function analyzeFileTestability(filePath: string): FileAnalysis {
 // ---------------------------------------------------------------------------
 
 function detectTestFramework(rootDir: string): boolean {
-  const pkgPath = join(rootDir, 'package.json');
-  if (!existsSync(pkgPath)) return false;
-  try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-    const allDeps = {
-      ...(pkg.dependencies ?? {}),
-      ...(pkg.devDependencies ?? {}),
-    };
-    const testFrameworks = [
-      'jest',
-      'vitest',
-      'mocha',
-      'jasmine',
-      'ava',
-      'tap',
-      'pytest',
-      'unittest',
-    ];
-    return testFrameworks.some((fw) => allDeps[fw]);
-  } catch {
-    return false;
+  // Check common manifest files
+  const manifests = [
+    {
+      file: 'package.json',
+      deps: ['jest', 'vitest', 'mocha', 'mocha', 'jasmine', 'ava', 'tap'],
+    },
+    { file: 'requirements.txt', deps: ['pytest', 'unittest', 'nose'] },
+    { file: 'pyproject.toml', deps: ['pytest'] },
+    { file: 'pom.xml', deps: ['junit', 'testng'] },
+    { file: 'build.gradle', deps: ['junit', 'testng'] },
+    { file: 'go.mod', deps: ['testing'] }, // go testing is built-in
+  ];
+
+  for (const m of manifests) {
+    const p = join(rootDir, m.file);
+    if (existsSync(p)) {
+      if (m.file === 'go.mod') return true; // built-in
+      try {
+        const content = readFileSync(p, 'utf-8');
+        if (m.deps.some((d) => content.includes(d))) return true;
+      } catch {}
+    }
   }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +119,11 @@ function detectTestFramework(rootDir: string): boolean {
 
 const TEST_PATTERNS = [
   /\.(test|spec)\.(ts|tsx|js|jsx)$/,
+  /_test\.go$/,
+  /test_.*\.py$/,
+  /.*_test\.py$/,
+  /.*Test\.java$/,
+  /.*Tests\.cs$/,
   /__tests__\//,
   /\/tests?\//,
   /\/e2e\//,
@@ -285,7 +142,7 @@ export async function analyzeTestability(
   // Use core scanFiles which respects .gitignore recursively
   const allFiles = await scanFiles({
     ...options,
-    include: options.include || ['**/*.{ts,tsx,js,jsx}'],
+    include: options.include || ['**/*.{ts,tsx,js,jsx,py,java,cs,go}'],
     includeTests: true,
   });
 
@@ -315,7 +172,7 @@ export async function analyzeTestability(
       options.onProgress
     );
 
-    const a = analyzeFileTestability(f);
+    const a = await analyzeFileTestability(f);
     for (const key of Object.keys(aggregated) as Array<keyof FileAnalysis>) {
       aggregated[key] += a[key];
     }
@@ -348,10 +205,10 @@ export async function analyzeTestability(
       dimension: 'framework',
       severity: Severity.Critical,
       message:
-        'No testing framework detected in package.json — AI changes cannot be verified at all.',
+        'No major testing framework detected — AI changes cannot be safely verified.',
       location: { file: options.rootDir, line: 0 },
       suggestion:
-        'Add Jest, Vitest, or another testing framework as a devDependency.',
+        'Add a testing framework (e.g., Jest, Pytest, JUnit) to enable automated verification.',
     });
   }
 
@@ -373,21 +230,10 @@ export async function analyzeTestability(
       type: IssueType.LowTestability,
       dimension: 'purity',
       severity: Severity.Major,
-      message: `Only ${indexResult.dimensions.purityScore}% of functions are pure — side-effectful functions require complex test setup.`,
+      message: `Only ${indexResult.dimensions.purityScore}% of functions appear pure — side-effectful code is harder for AI to verify safely.`,
       location: { file: options.rootDir, line: 0 },
       suggestion:
-        'Extract pure transformation logic from I/O and mutation code.',
-    });
-  }
-
-  if (indexResult.dimensions.observabilityScore < 50) {
-    issues.push({
-      type: IssueType.LowTestability,
-      dimension: 'observability',
-      severity: Severity.Major,
-      message: `Many functions mutate external state directly — outputs are invisible to unit tests.`,
-      location: { file: options.rootDir, line: 0 },
-      suggestion: 'Prefer returning values over mutating shared state.',
+        'Refactor complex side-effectful logic into pure functions where possible.',
     });
   }
 
