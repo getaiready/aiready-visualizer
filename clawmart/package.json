@@ -34,7 +34,8 @@
     "monetization"
   ],
   "license": "MIT",
+  "private": true,
   "publishConfig": {
-    "access": "public"
+    "access": "restricted"
   }
 }
