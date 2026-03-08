@@ -340,7 +340,7 @@ sync: ## Push monorepo to origin and sync all spokes to their public repos. Use 
 	@git push origin $(TARGET_BRANCH)
 	@$(call log_success,Pushed to monorepo)
 	@$(call log_step,Syncing relevant repositories in parallel...)
-	@$(MAKE) $(MAKE_PARALLEL) $(addprefix github-sync-spoke-,$(ALL_SPOKES)) github-sync-landing github-sync-vscode CHANGED_FILES="$$CHANGED_FILES" FORCE="$(FORCE)"
+	@$(MAKE) $(MAKE_PARALLEL) $(addprefix github-sync-spoke-,$(ALL_SPOKES)) github-sync-landing github-sync-vscode github-sync-action CHANGED_FILES="$$CHANGED_FILES" FORCE="$(FORCE)"
 	@$(call log_success,Sync process completed)
 
 .PHONY: github-sync-spoke-%
@@ -378,6 +378,17 @@ github-sync-vscode:
 		$(MAKE) publish-vscode-sync OWNER=$(OWNER) 2>&1 | grep -E '(SUCCESS|ERROR|Synced|tag pushed)' || true; \
 	fi
 
+.PHONY: github-sync-action
+github-sync-action:
+	@should_sync=false; \
+	if [ "$(FORCE)" = "true" ] || [ "$(CHANGED_FILES)" = "FORCE_ALL" ] || echo "$(CHANGED_FILES)" | grep -q "action-marketplace/"; then \
+		should_sync=true; \
+	fi; \
+	if [ "$$should_sync" = "true" ]; then \
+		$(call log_step,Syncing GitHub Action repository...); \
+		$(MAKE) publish-action-sync OWNER=$(OWNER) 2>&1 | grep -E '(SUCCESS|ERROR|Synced|tag pushed)' || true; \
+	fi
+
 deploy: sync ## Alias for sync (push monorepo + publish all spokes)
 	@:-pattern-detect ## Build and publish all packages to npm
 	@$(call log_success,All packages published to npm)
@@ -404,6 +415,30 @@ publish-vscode-sync: ## Sync VS Code extension to GitHub. Usage: make publish-vs
 		git tag -a "$$spoke_tag" "$$split_commit" -m "Release VS Code extension $$version"; \
 		git push "$$remote" "$$spoke_tag"; \
 		$(call log_success,Spoke tag pushed: $$spoke_tag); \
+	fi
+
+publish-action-sync: ## Sync GitHub Action to standalone repo. Usage: make publish-action-sync [OWNER=username]
+	@$(call log_step,Publishing GitHub Action to standalone repo...)
+	@url="https://github.com/$(OWNER)/aiready-action.git"; \
+	remote="aiready-action"; \
+	branch="publish-action"; \
+	git remote add "$$remote" "$$url" 2>/dev/null || git remote set-url "$$remote" "$$url"; \
+	$(call log_info,Remote set: $$remote -> $$url); \
+	git branch -D "$$branch" >/dev/null 2>&1 || true; \
+	git subtree split --prefix=action-marketplace -b "$$branch" >/dev/null; \
+	$(call log_info,Subtree split complete: $$branch); \
+	split_commit=$$(git rev-parse "$$branch"); \
+	git push -f "$$remote" "$$branch":$(TARGET_BRANCH); \
+	$(call log_success,Synced GitHub Action to standalone repo ($(TARGET_BRANCH))); \
+	version=$$(node -p "require('./action-marketplace/package.json').version"); \
+	spoke_tag="v$$version"; \
+	$(call log_step,Tagging action repo commit $$split_commit as $$spoke_tag...); \
+	if git ls-remote --tags "$$remote" "$$spoke_tag" | grep -q "$$spoke_tag"; then \
+		$(call log_info,Action tag $$spoke_tag already exists on $$remote; skipping); \
+	else \
+		git tag -a "$$spoke_tag" "$$split_commit" -m "Release GitHub Action $$version"; \
+		git push "$$remote" "$$spoke_tag"; \
+		$(call log_success,Action tag pushed: $$spoke_tag); \
 	fi
 
 # ============================================================================
