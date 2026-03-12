@@ -116,6 +116,7 @@ publish: ## Publish spoke to GitHub. Usage: make publish SPOKE=pattern-detect [O
 	git remote add "$$remote" "$$url" 2>/dev/null || git remote set-url "$$remote" "$$url"; \
 	$(call log_info,Remote set: $$remote -> $$url); \
 	git branch -D "$$branch" >/dev/null 2>&1 || true; \
+	$(call log_info,Creating subtree split for packages/$(SPOKE)...); \
 	git subtree split --prefix=packages/$(SPOKE) -b "$$branch" >/dev/null; \
 	$(call log_info,Subtree split complete: $$branch); \
 	split_commit=$$(git rev-parse "$$branch"); \
@@ -234,7 +235,7 @@ push: sync ## Alias for sync
 push-all: sync ## Alias for sync (push monorepo + publish all spokes)
 
 # Sync changes from platform repo back to monorepo
-sync-platform: ## Sync changes from aiready-platform repo back to monorepo
+sync-platform: ## Sync changes from aiready-platform back to monorepo
 	@$(call log_step,Syncing changes from aiready-platform back to monorepo...)
 	@url="https://github.com/$(OWNER)/aiready-platform.git"; \
 	remote="aiready-platform"; \
@@ -276,7 +277,7 @@ publish-platform: ## Publish platform to GitHub. Usage: make publish-platform [O
 	$(call log_success,Platform tag pushed: $$platform_tag)
 
 # Sync changes from landing repo back to monorepo
-sync-landing: ## Sync changes from aiready-landing repo back to monorepo
+sync-landing: ## Sync changes from aiready-landing back to monorepo
 	@$(call log_step,Syncing changes from aiready-landing back to monorepo...)
 	@url="https://github.com/$(OWNER)/aiready-landing.git"; \
 	remote="aiready-landing"; \
@@ -401,6 +402,7 @@ publish-vscode-sync: ## Sync VS Code extension to GitHub. Usage: make publish-vs
 	git remote add "$$remote" "$$url" 2>/dev/null || git remote set-url "$$remote" "$$url"; \
 	$(call log_info,Remote set: $$remote -> $$url); \
 	git branch -D "$$branch" >/dev/null 2>&1 || true; \
+	$(call log_info,Creating subtree split for vscode-extension...); \
 	git subtree split --prefix=vscode-extension -b "$$branch" >/dev/null; \
 	$(call log_info,Subtree split complete: $$branch); \
 	split_commit=$$(git rev-parse "$$branch"); \
@@ -425,6 +427,7 @@ publish-action-sync: ## Sync GitHub Action to standalone repo. Usage: make publi
 	git remote add "$$remote" "$$url" 2>/dev/null || git remote set-url "$$remote" "$$url"; \
 	$(call log_info,Remote set: $$remote -> $$url); \
 	git branch -D "$$branch" >/dev/null 2>&1 || true; \
+	$(call log_info,Creating subtree split for action-marketplace...); \
 	git subtree split --prefix=action-marketplace -b "$$branch" >/dev/null; \
 	$(call log_info,Subtree split complete: $$branch); \
 	split_commit=$$(git rev-parse "$$branch"); \

@@ -14,8 +14,20 @@ import FutureHumanFriendlyCode from './future-human-friendly-code';
 import futureHumanFriendlyCodeMeta from './future-human-friendly-code.meta';
 import TheAgenticWall from './the-agentic-wall';
 import theAgenticWallMeta from './the-agentic-wall.meta';
+import BeyondTheSidekick from './beyond-the-sidekick';
+import beyondTheSidekickMeta from './beyond-the-sidekick.meta';
 
 export const posts = [
+  {
+    slug: beyondTheSidekickMeta.slug,
+    title: beyondTheSidekickMeta.title,
+    date: beyondTheSidekickMeta.date,
+    excerpt: beyondTheSidekickMeta.excerpt,
+    author: beyondTheSidekickMeta.author,
+    tags: beyondTheSidekickMeta.tags || [],
+    readingTime: beyondTheSidekickMeta.readingTime,
+    Content: BeyondTheSidekick,
+  },
   {
     slug: theAgenticWallMeta.slug,
     title: theAgenticWallMeta.title,
