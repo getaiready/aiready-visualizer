@@ -1,0 +1,15 @@
+{
+  "name": "aiready-advanced-grounding",
+  "version": "0.1.0",
+  "description": "Expert skill for improving AI agent grounding and context accuracy.",
+  "author": "aiready",
+  "license": "MIT",
+  "homepage": "https://getaiready.dev",
+  "repository": "https://github.com/caopengau/aiready-advanced-grounding",
+  "mcpServers": [
+    {
+      "name": "aiready",
+      "smitheryUrl": "https://smithery.ai/mcp/@aiready/mcp-server"
+    }
+  ]
+}
