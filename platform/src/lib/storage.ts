@@ -16,7 +16,7 @@ import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { getSignedUrl } from '@aws-sdk/client-s3';
 import { ToolName, FRIENDLY_TOOL_NAMES } from '@aiready/core/client';
 
 // Initialize S3 client
@@ -198,7 +198,7 @@ export async function getAnalysisDownloadUrl(
     Key: key,
   });
 
-  return getSignedUrl(s3Client, command, { expiresIn });
+  return getSignedUrl(s3, command, { expiresIn });
 }
 
 /**
