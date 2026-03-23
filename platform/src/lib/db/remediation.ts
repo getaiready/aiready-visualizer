@@ -1,13 +1,4 @@
-import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { doc, TABLE_NAME } from './client';
-import {
-  putItem,
-  queryItems,
-  PK,
-  SK,
-  buildUpdateExpression,
-  updateItem,
-} from './helpers';
+import { PK, SK, buildUpdateExpression, updateItem, putItem, queryItems } from './helpers';
 import type { RemediationRequest } from './types';
 
 /**

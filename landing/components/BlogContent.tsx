@@ -18,7 +18,7 @@ export default function BlogContent({ html }: Props) {
     root.querySelectorAll('pre code').forEach((block) => {
       try {
         hljs.highlightElement(block as HTMLElement);
-      } catch (e) {
+      } catch (_e) {
         // no-op
       }
     });

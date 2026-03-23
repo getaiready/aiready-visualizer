@@ -9,7 +9,7 @@ import {
   deleteRepository,
   getLatestAnalysis,
 } from '@/lib/db';
-import { planLimits, MVP_FREE_ONLY } from '@/lib/plans';
+import { planLimits } from '@/lib/plans';
 import { randomUUID } from 'crypto';
 
 import { validateApiKey } from '@/lib/db';
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (!name || !url)
       return { status: 400, error: 'Name and URL are required' };
 
-    const urlPattern = /^(https?:\/\/|git@)[\w.@:\/\-]+$/;
+    const urlPattern = /^(https?:\/\/|git@)[\w.@:/-]+$/;
     if (!urlPattern.test(url))
       return { status: 400, error: 'Invalid repository URL' };
 

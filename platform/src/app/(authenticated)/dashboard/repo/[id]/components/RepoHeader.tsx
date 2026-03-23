@@ -5,7 +5,6 @@ import {
   FileIcon,
   InfoIcon,
   PlayIcon,
-  RobotIcon,
   SettingsIcon,
 } from '@/components/Icons';
 import {

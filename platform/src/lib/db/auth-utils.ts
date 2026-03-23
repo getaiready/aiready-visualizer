@@ -1,14 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import {
-  PutCommand,
-  GetCommand,
-  QueryCommand,
-  DeleteCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { doc, TABLE_NAME } from './client';
-import {
   putItem,
-  getItem,
   queryItems,
   deleteItem,
   PK,

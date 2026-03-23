@@ -6,16 +6,14 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import Script from 'next/script';
 import { ChartIcon } from '@/components/Icons';
-import PlatformShell from '@/components/PlatformShell';
-import { Team, TeamMember } from '@/lib/db';
 import { LANDING_BASE_URL, PLATFORM_BASE_URL } from '@/lib/seo-schema';
 import { metrics } from './constants';
 import { MetricCard } from './components/MetricCard';
 
 export default function MetricsClient({
-  user,
-  teams = [],
-  overallScore,
+  user: _user,
+  teams: _teams = [],
+  overallScore: _overallScore,
 }: Props) {
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
 

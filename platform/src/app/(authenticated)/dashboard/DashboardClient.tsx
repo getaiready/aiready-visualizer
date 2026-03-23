@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import PlatformShell from '@/components/PlatformShell';
 import type { Repository, Analysis, Team, TeamMember } from '@/lib/db';
 import { TeamManagement } from './components/TeamManagement';
 import { RulesetSettings } from './components/RulesetSettings';
@@ -40,7 +39,7 @@ export default function DashboardClient({
   teams,
   overallScore,
 }: Props) {
-  const [currentTeamId, setCurrentTeamId] = useState<string | 'personal'>(
+  const [currentTeamId, _setCurrentTeamId] = useState<string | 'personal'>(
     'personal'
   );
 

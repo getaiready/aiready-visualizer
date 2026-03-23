@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         0
       ),
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('Remediation API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

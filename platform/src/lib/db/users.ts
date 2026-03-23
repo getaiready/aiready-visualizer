@@ -1,11 +1,4 @@
 import {
-  PutCommand,
-  GetCommand,
-  QueryCommand,
-  UpdateCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { doc, TABLE_NAME } from './client';
-import {
   putItem,
   getItem,
   queryItems,

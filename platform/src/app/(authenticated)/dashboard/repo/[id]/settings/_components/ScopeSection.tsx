@@ -47,7 +47,7 @@ export function ScopeSection({
           </label>
           <textarea
             value={settings.scan?.exclude?.join(', ') || ''}
-            onChange={(e) =>
+            onChange={(_e) =>
               onUpdate({
                 exclude: e.target.value
                   .split(',')

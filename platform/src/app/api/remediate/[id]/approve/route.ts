@@ -37,7 +37,7 @@ export async function POST(
       success: true,
       message: 'Remediation approved and started',
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('[ApprovalAPI] Error:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },

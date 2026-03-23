@@ -8,14 +8,14 @@ include makefiles/Makefile.shared.mk
 	lint lint-fix format format-check \
 	type-check type-check-all
 
-# Dynamically generate leaf targets from ALL_SPOKES
+# Dynamically generate leaf targets from QUALITY_SPOKES
 # NOTE: Do NOT add these to .PHONY — GNU Make 3.81 breaks pattern rules when
 # combined with .PHONY, causing "Nothing to be done" instead of running the recipe.
-FORMAT_LEAF := $(foreach spoke,$(ALL_SPOKES),format-check-$(spoke))
-FORMAT_FIX_LEAF := $(foreach spoke,$(ALL_SPOKES),format-$(spoke))
-LINT_LEAF := $(foreach spoke,$(ALL_SPOKES),lint-$(spoke))
-LINT_FIX_LEAF := $(foreach spoke,$(ALL_SPOKES),lint-fix-$(spoke))
-TYPE_LEAF := $(foreach spoke,$(ALL_SPOKES),type-check-$(spoke))
+FORMAT_LEAF := $(foreach spoke,$(QUALITY_SPOKES),format-check-$(spoke))
+FORMAT_FIX_LEAF := $(foreach spoke,$(QUALITY_SPOKES),format-$(spoke))
+LINT_LEAF := $(foreach spoke,$(QUALITY_SPOKES),lint-$(spoke))
+LINT_FIX_LEAF := $(foreach spoke,$(QUALITY_SPOKES),lint-fix-$(spoke))
+TYPE_LEAF := $(foreach spoke,$(QUALITY_SPOKES),type-check-$(spoke))
 
 # Combined quality checks
 check-all: ## Run format-check, lint, and type-check across the repo
@@ -56,7 +56,7 @@ lint-fix: ## Run ESLint --fix on all packages
 
 lint-fix-%:
 	@$(call log_info,Auto-fixing lint issues ($*)...)
-	@$(PNPM) $(SILENT_PNPM) --filter @aiready/$* exec eslint . --ext .ts --fix
+	@$(PNPM) $(SILENT_PNPM) --filter @aiready/$* lint --fix
 	@$(call log_success,$* ESLint auto-fix completed)
 
 # Format checks
@@ -67,7 +67,7 @@ format-check: ## Check formatting across all packages
 
 format-check-%:
 	@$(call log_info,Checking formatting $*...)
-	@$(PNPM) $(SILENT_PNPM) exec prettier --check ./packages/$* --ignore-path ./.prettierignore || { $(call log_error,$* formatting issues); exit 1; }
+	@$(PNPM) $(SILENT_PNPM) exec prettier --check ./$(call SPOKE_DIR,$*) --ignore-path ./.prettierignore || { $(call log_error,$* formatting issues); exit 1; }
 
 # Format fixes
 format: ## Format all packages with Prettier
@@ -77,7 +77,7 @@ format: ## Format all packages with Prettier
 
 format-%:
 	@$(call log_info,Formatting $*...)
-	@$(PNPM) $(SILENT_PNPM) exec prettier --write ./packages/$* --ignore-path ./.prettierignore
+	@$(PNPM) $(SILENT_PNPM) exec prettier --write ./$(call SPOKE_DIR,$*) --ignore-path ./.prettierignore
 	@$(call log_success,$* formatted)
 
 # Type checking

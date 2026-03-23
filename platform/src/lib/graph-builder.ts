@@ -52,8 +52,8 @@ export class GraphBuilder {
     if (!filePath) return '';
     // Clean up /tmp/repo-.../ prefix more robustly
     return filePath
-      .replace(/^\/tmp\/repo-[^\/]+\//, '')
-      .replace(/^repo-[^\/]+\//, '');
+      .replace(/^\/tmp\/repo-[^/]+\//, '')
+      .replace(/^repo-[^/]+\//, '');
   }
 
   private normalizeLabel(filePath: string) {
@@ -421,7 +421,7 @@ export class GraphBuilder {
     for (const node of nodes) {
       // Don't override folder colors with issue colors for now
       const isFolder = builder.edges.some(
-        (e) => e.source === node.id && e.type === 'structural'
+        (_e) => e.source === node.id && e.type === 'structural'
       );
       if (isFolder) {
         node.color = '#6366f1'; // Indigo-500 for domains

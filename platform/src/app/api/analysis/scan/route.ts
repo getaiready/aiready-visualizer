@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       message: 'Scan triggered successfully',
       repoId,
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('Error triggering scan:', error);
     return NextResponse.json(
       {

@@ -56,7 +56,7 @@ export default function VisualizePage({ params: paramsPromise }: Props) {
           setTeams(teamsData.teams || []);
         }
       }
-    } catch (err) {
+    } catch (_err) {
       console.error('Error fetching visualization data:', err);
       toast.error('An unexpected error occurred');
     } finally {

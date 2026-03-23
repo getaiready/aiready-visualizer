@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
       },
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('Metadata API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

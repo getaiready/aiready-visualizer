@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import ParallaxSection from './ParallaxSection';
-import { Bot, Code2, ArrowRight } from 'lucide-react';
+import { Bot, ArrowRight } from 'lucide-react';
 
 interface CTAProps {
   onOpenAudit: () => void;

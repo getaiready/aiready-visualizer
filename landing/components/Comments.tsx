@@ -7,7 +7,7 @@ interface CommentsProps {
   title: string;
 }
 
-export function Comments({ slug, title }: CommentsProps) {
+export function Comments({ slug, title: _title }: CommentsProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

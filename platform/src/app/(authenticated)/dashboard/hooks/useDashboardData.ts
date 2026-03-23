@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import type { Repository, Analysis } from '@/lib/db';
 
@@ -17,6 +17,25 @@ export function useDashboardData(
   const [deletingRepoId, setDeletingRepoId] = useState<string | null>(null);
   const [deletedRepoIds, setDeletedRepoIds] = useState<Set<string>>(new Set());
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const fetchTeamRepos = useCallback(
+    async (teamId: string) => {
+      try {
+        const res = await fetch(`/api/repos?teamId=${teamId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fetchedRepos = data.repos.map((r: any) => ({
+            ...r,
+            latestAnalysis: r.latestAnalysis || null,
+          }));
+          setRepos(fetchedRepos.filter((r: any) => !deletedRepoIds.has(r.id)));
+        }
+      } catch (_err) {
+        console.error('Failed to fetch team repos:', _err);
+      }
+    },
+    [deletedRepoIds]
+  );
 
   useEffect(() => {
     if (currentTeamId === 'personal') {
@@ -38,23 +57,7 @@ export function useDashboardData(
     } else {
       fetchTeamRepos(currentTeamId);
     }
-  }, [currentTeamId, initialRepos, deletedRepoIds]);
-
-  async function fetchTeamRepos(teamId: string) {
-    try {
-      const res = await fetch(`/api/repos?teamId=${teamId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const fetchedRepos = data.repos.map((r: any) => ({
-          ...r,
-          latestAnalysis: r.latestAnalysis || null,
-        }));
-        setRepos(fetchedRepos.filter((r: any) => !deletedRepoIds.has(r.id)));
-      }
-    } catch (err) {
-      console.error('Failed to fetch team repos:', err);
-    }
-  }
+  }, [currentTeamId, initialRepos, deletedRepoIds, fetchTeamRepos]);
 
   // Initialize pending scans from repo data
   useEffect(() => {
@@ -123,13 +126,13 @@ export function useDashboardData(
             )
           );
         }
-      } catch (err) {
-        console.error('Polling error:', err);
+      } catch (_err) {
+        console.error('Polling error:', _err);
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [pendingScanRepoIds, currentTeamId, repos]);
+  }, [pendingScanRepoIds, currentTeamId, repos, deletedRepoIds]);
 
   async function handleScanRepo(repoId: string) {
     setScanningRepoId(repoId);

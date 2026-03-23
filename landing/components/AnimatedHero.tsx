@@ -5,11 +5,9 @@ import { useState, useEffect } from 'react';
 import AgentPrompt from './AgentPrompt';
 import {
   Rocket,
-  Package,
   Terminal,
   Bot,
   Code2,
-  ArrowRight,
   CheckCircle2,
   Copy,
   Check,

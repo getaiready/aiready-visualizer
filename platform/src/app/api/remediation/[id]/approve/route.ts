@@ -37,7 +37,7 @@ export async function PATCH(
     });
 
     return NextResponse.json({ success: true, status: 'approved' });
-  } catch (error) {
+  } catch (_error) {
     console.error('Error approving remediation:', error);
     return NextResponse.json(
       { error: 'Failed to approve remediation' },

@@ -11,11 +11,11 @@ export type BlogPost = {
   readingTime: string;
   cover?: string;
   ogImage?: string;
-  Content: React.ComponentType<any>;
+  Content: React.ComponentType<object>;
 };
 
 export async function getAllPosts(): Promise<Omit<BlogPost, 'Content'>[]> {
-  const metas = staticPosts.map(({ Content, ...meta }) => meta);
+  const metas = staticPosts.map(({ Content: _Content, ...meta }) => meta);
   return metas.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 

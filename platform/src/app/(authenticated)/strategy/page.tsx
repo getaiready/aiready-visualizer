@@ -28,7 +28,7 @@ export default async function GlobalStrategyPage() {
         updatedAt: new Date().toISOString(),
       });
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Strategy page error:', error);
     user = {
       id: session.user.id,

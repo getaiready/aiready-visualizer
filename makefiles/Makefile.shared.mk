@@ -21,6 +21,14 @@ endif
 # Exclude skills (skills.sh distribution only, not npm)
 ALL_SPOKES := $(filter-out skills, $(notdir $(wildcard packages/*)))
 
+# Spokes that are subject to quality checks (lint, format, type-check)
+# This includes the standard spokes in packages/ plus top-level apps
+QUALITY_SPOKES := $(ALL_SPOKES) landing platform clawmore
+
+# Function to get the directory for a given spoke
+# It checks if it exists in packages/ first, otherwise assumes it's at the root
+SPOKE_DIR = $(if $(wildcard packages/$(1)),packages/$(1),$(1))
+
 # ============================================================================
 # Publishing Policy: Explicit Allowlists
 # ============================================================================

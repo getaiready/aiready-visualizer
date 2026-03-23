@@ -66,12 +66,12 @@ export async function POST(req: NextRequest) {
       message: 'Remediation agent task enqueued',
       remediationId,
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('[RemediateAPI] Error:', error);
     return NextResponse.json(
       {
-        error: 'Internal Server Error',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Failed to trigger remediation',
+        details: (error as Error).message,
       },
       { status: 500 }
     );

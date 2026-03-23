@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ToolName, FRIENDLY_TOOL_NAMES } from '@aiready/core/client';
 import { toast } from 'sonner';
 import { Icon } from '@/components/Icon';
@@ -40,11 +40,7 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchRuleset();
-  }, [teamId]);
-
-  async function fetchRuleset() {
+  const fetchRuleset = useCallback(async () => {
     try {
       const res = await fetch(`/api/teams/${teamId}/ruleset`);
       if (res.ok) {
@@ -53,12 +49,16 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
           setRuleset(data.ruleset);
         }
       }
-    } catch (err) {
+    } catch (_err) {
       console.error('Failed to fetch ruleset:', err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [teamId]);
+
+  useEffect(() => {
+    fetchRuleset();
+  }, [fetchRuleset]);
 
   async function handleSave() {
     setSaving(true);
@@ -73,7 +73,7 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
       } else {
         toast.error('Failed to update ruleset');
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Network error');
     } finally {
       setSaving(false);
@@ -209,7 +209,7 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
                       <input
                         type="checkbox"
                         checked={isEnabled}
-                        onChange={(e) =>
+                        onChange={(_e) =>
                           updateOverride(tool, 'enabled', e.target.checked)
                         }
                         className="sr-only peer"
@@ -228,7 +228,7 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
                         max="100"
                         value={currentWeight}
                         disabled={!isEnabled}
-                        onChange={(e) =>
+                        onChange={(_e) =>
                           updateOverride(
                             tool,
                             'weight',
@@ -249,7 +249,7 @@ export function RulesetSettings({ teamId }: { teamId: string }) {
                         placeholder="70"
                         value={override.threshold ?? ''}
                         disabled={!isEnabled}
-                        onChange={(e) =>
+                        onChange={(_e) =>
                           updateOverride(
                             tool,
                             'threshold',

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Mock report data that follows the UnifiedReport contract
-const mockReport = {
+const _mockReport = {
   summary: {
     totalFiles: 10,
     totalIssues: 5,

@@ -36,7 +36,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, lang }) => {
             typeof c === 'string' ? c : typeof c === 'number' ? String(c) : ''
           )
           .join('');
-      } catch (e) {
+      } catch (_e) {
         return children;
       }
     }
@@ -79,7 +79,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, lang }) => {
       try {
         const result = hljs.highlight(cleanCode, { language });
         return result.value;
-      } catch (e) {
+      } catch (_e) {
         return cleanCode;
       }
     }

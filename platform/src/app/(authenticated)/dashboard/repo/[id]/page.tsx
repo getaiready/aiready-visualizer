@@ -4,31 +4,22 @@ import {
   getRepository,
   listUserTeams,
   listUserRepositories,
-  getLatestAnalysis,
 } from '@/lib/db';
 import RepoDetailClient from './RepoDetailClient';
 
-export default async function RepoDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const session = await auth();
+interface Props {
+  params: { id: string };
+}
 
-  if (!session?.user?.id) {
-    redirect('/login');
+export default async function RepoDetailPage({ params }: Props) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/api/auth/signin');
   }
 
-  const repo = await getRepository(id);
-
+  const repo = await getRepository(params.id);
   if (!repo) {
     notFound();
-  }
-
-  // Auth check: User must own the repo
-  if (repo.userId !== session.user.id) {
-    redirect('/dashboard');
   }
 
   const teams = await listUserTeams(session.user.id);

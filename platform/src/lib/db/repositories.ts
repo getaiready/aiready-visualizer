@@ -1,18 +1,9 @@
 import {
-  PutCommand,
-  GetCommand,
-  QueryCommand,
-  UpdateCommand,
-  DeleteCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { doc, TABLE_NAME } from './client';
-import {
   putItem,
   getItem,
   queryItems,
   deleteItem,
   PK,
-  SK,
   repoKey,
   updateItem,
   buildUpdateExpression,
@@ -89,8 +80,16 @@ export async function updateRepositoryScore(
   await updateItem(repoKey(repoId), expr.expression, expr.values, expr.names);
 }
 
-export async function setRepositoryScanning(repoId: string): Promise<void> {
-  const expr = buildUpdateExpression({ isScanning: true });
+export async function setRepositoryScanning(
+  repoId: string,
+  isScanning: boolean,
+  lastError?: string
+): Promise<void> {
+  const updates: any = { isScanning };
+  if (lastError !== undefined) {
+    updates.lastError = lastError;
+  }
+  const expr = buildUpdateExpression(updates);
   if (!expr) return;
   await updateItem(repoKey(repoId), expr.expression, expr.values, expr.names);
 }

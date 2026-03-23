@@ -1,17 +1,12 @@
 import {
   PutCommand,
-  GetCommand,
   QueryCommand,
-  UpdateCommand,
   DeleteCommand,
-  BatchWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { doc, TABLE_NAME } from './client';
 import {
-  putItem,
   getItem,
   queryItems,
-  deleteItem,
   batchPutItems,
   PK,
   SK,
@@ -66,7 +61,7 @@ export async function getTeamBySlug(slug: string): Promise<Team | null> {
 }
 
 export async function listUserTeams(
-  userId: string
+  _userId: string
 ): Promise<(TeamMember & { team: Team })[]> {
   const result = await doc.send(
     new QueryCommand({

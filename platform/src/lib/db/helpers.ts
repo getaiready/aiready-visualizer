@@ -95,8 +95,8 @@ export async function batchPutItems(
 // Helper to build update expression from partial object
 export type UpdateExpressionParts = {
   expression: string;
-  values?: Record<string, unknown>;
-  names?: Record<string, string>;
+  values: Record<string, unknown>;
+  names: Record<string, string>;
 };
 
 export function buildUpdateExpression(

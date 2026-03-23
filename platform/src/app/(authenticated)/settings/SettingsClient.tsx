@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import PlatformShell from '@/components/PlatformShell';
 import type { ApiKey, Team, TeamMember } from '@/lib/db';
 import { ProfileSection } from './components/ProfileSection';
 import { IntegrationsSection } from './components/IntegrationsSection';
@@ -12,7 +11,6 @@ import { NewKeyModal } from './components/NewKeyModal';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
 import type { AIReadyConfig } from '@aiready/core';
-import { ScanConfigForm } from '../dashboard/repo/[id]/settings/ScanConfigForm';
 import { updateScanStrategy } from '@/lib/scan-strategy';
 
 interface Props {
@@ -29,7 +27,7 @@ interface Props {
   overallScore: number | null;
 }
 
-export default function SettingsClient({ user, teams, overallScore }: Props) {
+export default function SettingsClient({ user, teams: _teams, overallScore: _overallScore }: Props) {
   const router = useRouter();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   // ... rest of state
@@ -51,7 +49,7 @@ export default function SettingsClient({ user, teams, overallScore }: Props) {
       const res = await fetch('/api/keys');
       const data = await res.json();
       if (res.ok) setApiKeys(data.keys);
-    } catch (err) {
+    } catch (_err) {
       console.error('Failed to fetch API keys:', err);
     }
   }
@@ -73,7 +71,7 @@ export default function SettingsClient({ user, teams, overallScore }: Props) {
         fetchApiKeys();
         toast.success('API key generated');
       }
-    } catch (err) {
+    } catch (_err) {
       console.error('Failed to create API key:', err);
       toast.error('Failed to generate API key');
     } finally {
@@ -92,7 +90,7 @@ export default function SettingsClient({ user, teams, overallScore }: Props) {
         setApiKeys((prev) => prev.filter((k) => k.id !== keyToDelete.id));
         toast.success('API key deleted');
       }
-    } catch (err) {
+    } catch (_err) {
       console.error('Failed to delete API key:', err);
       toast.error('Failed to delete API key');
     } finally {

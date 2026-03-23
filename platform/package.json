@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@aiready/agent-grounding": "workspace:*",
+    "@aiready/agents": "workspace:*",
     "@aiready/ai-signal-clarity": "workspace:*",
     "@aiready/change-amplification": "workspace:*",
     "@aiready/cli": "workspace:*",

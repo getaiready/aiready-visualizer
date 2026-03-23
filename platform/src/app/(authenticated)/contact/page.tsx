@@ -1,41 +1,6 @@
-import { auth } from '@/app/api/auth/[...nextauth]/route';
-import {
-  getUserByEmail,
-  listUserRepositories,
-  listUserTeams,
-  Team,
-  TeamMember,
-} from '@/lib/db';
-import PlatformShell from '@/components/PlatformShell';
 import { Mail, Phone, Linkedin, MapPin, ExternalLink } from 'lucide-react';
 
 export default async function ContactPage() {
-  const session = await auth();
-
-  let user = null;
-  let repos: any[] = [];
-  let teams: (TeamMember & { team: Team })[] = [];
-  let overallScore = null;
-
-  if (session?.user?.email) {
-    user = await getUserByEmail(session.user.email);
-    if (user) {
-      repos = await listUserRepositories(user.id);
-      teams = await listUserTeams(user.id);
-
-      const reposWithScores = repos.filter(
-        (r) => r.aiScore !== null && r.aiScore !== undefined
-      );
-      overallScore =
-        reposWithScores.length > 0
-          ? Math.round(
-              reposWithScores.reduce((sum, r) => sum + (r.aiScore || 0), 0) /
-                reposWithScores.length
-            )
-          : null;
-    }
-  }
-
   return (
     <div className="py-20 px-4 min-h-screen">
       <div className="max-w-5xl mx-auto">

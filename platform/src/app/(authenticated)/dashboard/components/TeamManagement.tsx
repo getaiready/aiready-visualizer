@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function TeamManagement({
   teamId,
@@ -14,21 +14,21 @@ export function TeamManagement({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [teamId]);
-
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
     try {
       const res = await fetch(`/api/teams?teamId=${teamId}`);
       if (res.ok) {
         const data = await res.json();
         setMembers(data.members);
       }
-    } catch (err) {
-      console.error('Failed to fetch members:', err);
+    } catch (_err) {
+      console.error('Failed to fetch members:', _err);
     }
-  }
+  }, [teamId]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -47,7 +47,7 @@ export function TeamManagement({
       } else {
         setError(data.error || 'Failed to invite member');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Network error');
     } finally {
       setLoading(false);
@@ -71,7 +71,7 @@ export function TeamManagement({
               type="email"
               placeholder="colleague@company.com"
               value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              onChange={(_e) => setInviteEmail(e.target.value)}
               className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50"
               required
             />
@@ -105,6 +105,7 @@ export function TeamManagement({
                   {m.user?.image ? (
                     <img
                       src={m.user.image}
+                      alt={m.user.name || 'Member avatar'}
                       className="w-8 h-8 rounded-full border border-slate-700"
                     />
                   ) : (

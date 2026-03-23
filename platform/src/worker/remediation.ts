@@ -9,7 +9,7 @@ import { getRepository } from '../lib/db/repositories';
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
-    const { remediationId, repoId, userId, accessToken } = JSON.parse(
+    const { remediationId, repoId, userId: _userId, accessToken } = JSON.parse(
       record.body
     ) as {
       remediationId: string;
@@ -99,7 +99,7 @@ export async function handler(event: SQSEvent) {
       } else {
         throw new Error(result.error || 'Workflow execution failed');
       }
-    } catch (error) {
+    } catch (_error) {
       console.error(
         `[RemediationWorker] Error processing remediation ${remediationId}:`,
         error

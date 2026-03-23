@@ -1,16 +1,11 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import PlatformShell from '@/components/PlatformShell';
-import {
-  AlertCircleIcon,
-  InfoIcon,
-  SettingsIcon,
-  FileIcon,
-} from '@/components/Icons';
+import { AlertCircleIcon, SettingsIcon } from '@/components/Icons';
 import type { Repository, Team, TeamMember } from '@/lib/db';
 import type { AnalysisData } from '@/lib/storage';
 import { ToolName, FRIENDLY_TOOL_NAMES } from '@aiready/core/client';
@@ -24,9 +19,6 @@ import CodeBlock from '@/components/CodeBlock';
 import { TrendCharts } from './components/TrendCharts';
 import { BenchmarkCard } from './components/BenchmarkCard';
 import { metrics as metricDefinitions } from '@/app/metrics/constants';
-import { toast } from 'sonner';
-import { Icon } from '@/components/Icon';
-import { auth } from '@/lib/auth';
 
 interface Props {
   repo: Repository;
@@ -74,12 +66,7 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
     setExpandedIssues(newExpanded);
   };
 
-  useEffect(() => {
-    fetchLatestAnalysis();
-    fetchHistoricalMetrics();
-  }, [repo.id]);
-
-  async function fetchHistoricalMetrics() {
+  const fetchHistoricalMetrics = useCallback(async () => {
     try {
       const [metricsRes, benchmarksRes] = await Promise.all([
         fetch(`/api/repos/${repo.id}/metrics?limit=100`),
@@ -95,12 +82,12 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
         const data = await benchmarksRes.json();
         setBenchmarks(data.benchmarks);
       }
-    } catch (err) {
-      console.error('Error fetching historical metrics:', err);
+    } catch (_err) {
+      console.error('Error fetching historical metrics:', _err);
     }
-  }
+  }, [repo.id]);
 
-  async function fetchLatestAnalysis() {
+  const fetchLatestAnalysis = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/repos/${repo.id}/analysis/latest`);
@@ -110,13 +97,18 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
       } else {
         setError(data.error || 'Failed to fetch analysis results');
       }
-    } catch (err) {
-      console.error('Error fetching analysis:', err);
+    } catch (_err) {
+      console.error('Error fetching analysis:', _err);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
-  }
+  }, [repo.id]);
+
+  useEffect(() => {
+    fetchLatestAnalysis();
+    fetchHistoricalMetrics();
+  }, [fetchLatestAnalysis, fetchHistoricalMetrics]);
 
   // Flatten issues from breakdown for easy filtering/display
   const allIssues: any[] = [];

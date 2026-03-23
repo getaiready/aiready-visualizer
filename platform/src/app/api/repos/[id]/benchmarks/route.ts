@@ -15,7 +15,7 @@ export async function GET(
       }
 
       return { benchmarks };
-    } catch (error) {
+    } catch (_error) {
       console.error('[BenchmarksAPI] Error:', error);
       return { status: 500, error: 'Internal Server Error' };
     }

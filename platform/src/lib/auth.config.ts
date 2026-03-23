@@ -2,9 +2,8 @@ import type { NextAuthConfig } from 'next-auth';
 import GitHub from 'next-auth/providers/github';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { getUserByEmail, createUser } from './db';
+import { getUserByEmail } from './db';
 import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
 
 // Extend the session type
 declare module 'next-auth' {
@@ -115,7 +114,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user: _user, account: _account, profile: _profile }) {
       // For OAuth providers, just allow sign-in - we'll create the user lazily
       // The user will be created in the dashboard page if they don't exist
       return true;

@@ -38,8 +38,8 @@ export async function GET(
         analysis: normalizedAnalysis,
         timestamp: latestAnalysisRecord.timestamp,
       };
-    } catch (error) {
-      console.error('Error fetching latest analysis:', error);
+    } catch (_error) { // _error is unused
+      console.error('Error fetching latest analysis:', _error);
       return { status: 500, error: 'Internal Server Error' };
     }
   });

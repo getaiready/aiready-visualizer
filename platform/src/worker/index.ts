@@ -7,7 +7,6 @@ import http from 'isomorphic-git/http/node';
 import { randomUUID } from 'crypto';
 import {
   normalizeReport,
-  calculateAiScore,
   extractBreakdown,
   extractSummary,
   storeAnalysis,
@@ -271,7 +270,7 @@ export async function handler(event: SQSEvent) {
       console.log(
         `[ScanWorker] Successfully completed analysis ${analysisId} for repo ${repoId}`
       );
-    } catch (error) {
+    } catch (_error) {
       console.error(`[ScanWorker] Error processing repo ${repoId}:`, error);
       // Update repository status with error
       await setRepositoryScanning(

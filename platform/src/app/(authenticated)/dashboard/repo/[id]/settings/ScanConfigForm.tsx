@@ -23,7 +23,7 @@ export interface ScanConfigFormProps {
 }
 
 export function ScanConfigForm({
-  repoId,
+  repoId: _repoId,
   initialSettings,
   fileCount,
   lastExecutionTime,

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       advice:
         'Start exploration in the matched files to minimize context fragmentation tokens.',
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('Grounding API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

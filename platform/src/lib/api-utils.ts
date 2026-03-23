@@ -90,7 +90,7 @@ export function withAuth(
         return unauthorized();
       }
       return handler(userId, request);
-    } catch (error) {
+    } catch (_error) {
       console.error('API Error:', error);
       return errorResponse('Internal server error');
     }

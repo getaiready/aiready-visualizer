@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import * as Icons from '@/components/Icons';
@@ -20,7 +20,7 @@ interface RemediationQueueProps {
   hasIssues: boolean;
 }
 
-export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
+export function RemediationQueue({ repoId, hasIssues: _hasIssues }: RemediationQueueProps) {
   const [remediations, setRemediations] = useState<RemediationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewingRem, setReviewingRem] = useState<{
@@ -32,14 +32,14 @@ export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
     fetchRemediations();
     const interval = setInterval(fetchRemediations, 5000); // Poll for agent status
     return () => clearInterval(interval);
-  }, [repoId]);
+  }, [fetchRemediations]);
 
   // Check if any remediation for this repo is currently in-progress
   const hasInProgressRemediation = remediations.some(
     (r) => r.status === 'in-progress'
   );
 
-  async function fetchRemediations() {
+  const fetchRemediations = useCallback(async () => {
     try {
       const res = await fetch(`/api/repos/${repoId}/remediations`);
       const data = await res.json();
@@ -50,14 +50,14 @@ export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
         );
         setRemediations(sorted);
       }
-    } catch (err) {
-      console.error('Error fetching remediations:', err);
+    } catch (_err) {
+      console.error('Error fetching remediations:', _err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [repoId]);
 
-  const handleSwarm = async (remId: string) => {
+  const _handleSwarm = async (remId: string) => {
     try {
       const res = await fetch('/api/remediate', {
         method: 'POST',
@@ -78,7 +78,7 @@ export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
           )
         );
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to start swarm');
     }
   };
@@ -91,12 +91,12 @@ export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
       if (res.ok) {
         fetchRemediations();
       }
-    } catch (err) {
-      console.error('Error approving remediation:', err);
+    } catch (_err) {
+      console.error('Error approving remediation:', _err);
     }
   }
 
-  async function handleRemediate(id: string) {
+  async function _handleRemediate(id: string) {
     try {
       const res = await fetch('/api/remediate', {
         method: 'POST',
@@ -106,8 +106,8 @@ export function RemediationQueue({ repoId, hasIssues }: RemediationQueueProps) {
       if (res.ok) {
         fetchRemediations();
       }
-    } catch (err) {
-      console.error('Error triggering remediation:', err);
+    } catch (_err) {
+      console.error('Error triggering remediation:', _err);
     }
   }
 

@@ -162,7 +162,7 @@ export function withAuth(
 
       // Call the handler
       return handler(request, context);
-    } catch (error) {
+    } catch (_error) {
       console.error('Auth middleware error:', error);
       return NextResponse.json(
         { error: 'Internal server error', code: 'INTERNAL_ERROR' },
@@ -234,8 +234,6 @@ export function getRateLimit(plan: Plan): {
   maxRequests: number;
   windowMs: number;
 } {
-  const limits = planLimits[plan];
-
   // Different rate limits per plan
   const rateLimits: Record<Plan, { maxRequests: number; windowMs: number }> = {
     free: { maxRequests: 10, windowMs: 60000 }, // 10 req/min

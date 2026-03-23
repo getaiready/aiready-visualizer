@@ -5,7 +5,7 @@ import {
   createPortalSession,
   getStripe,
 } from '../billing';
-import Stripe from 'stripe';
+import _Stripe from 'stripe';
 
 // Mock Stripe
 vi.mock('stripe', () => {

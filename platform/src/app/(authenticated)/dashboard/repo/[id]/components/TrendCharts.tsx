@@ -113,7 +113,7 @@ export function TrendCharts({
           .attr('stroke-width', 3);
         d3.select(this).style('opacity', 1);
       })
-      .on('mouseout', function (event, d) {
+      .on('mouseout', function (_event, _d) {
         g.selectAll('.line').style('opacity', 1).attr('stroke-width', 2);
         g.selectAll('.legend-item').style('opacity', 1);
       });

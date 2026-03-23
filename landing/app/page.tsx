@@ -3,10 +3,8 @@
 import Script from 'next/script';
 import { useState } from 'react';
 import AnimatedHero from '../components/AnimatedHero';
-import AnimatedStats from '../components/AnimatedStats';
 import { Benefits } from '../components/Benefits';
 import FloatingElements from '../components/FloatingElements';
-import ParallaxSection from '../components/ParallaxSection';
 import ChartsClient from '../components/ChartsClient';
 import RequestForm from '../components/RequestForm';
 import LiveScanDemo from '../components/LiveScanDemo';

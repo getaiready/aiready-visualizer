@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 
 import MotionProgress from './MotionProgress';
 import Link from 'next/link';

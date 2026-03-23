@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ShieldIcon } from '@/components/Icons';
 import { IssueItem } from './IssueItem';
 
@@ -32,10 +32,10 @@ export function IssueFeed({
   onFilterChange,
   toolLabels,
   severityColors,
-  currentPage,
+  currentPage: _currentPage,
   onLoadMore,
   hasMore,
-  itemsPerPage,
+  itemsPerPage: _itemsPerPage,
 }: IssueFeedProps) {
   return (
     <div className="lg:col-span-3 space-y-6">
@@ -59,7 +59,7 @@ export function IssueFeed({
           <select
             className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-[11px] font-bold text-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-500 appearance-none cursor-pointer pr-8"
             value={filter.severity || ''}
-            onChange={(e) => onFilterChange(e.target.value)}
+            onChange={(_e) => onFilterChange(e.target.value)}
             style={{
               backgroundImage:
                 "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E\")",
@@ -90,7 +90,7 @@ export function IssueFeed({
           </div>
         ) : (
           <>
-            {issues.map((issue, i) => {
+            {issues.map((issue, _i) => {
               const idx = allIssues.indexOf(issue);
               return (
                 <IssueItem

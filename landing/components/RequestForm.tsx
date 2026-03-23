@@ -59,9 +59,13 @@ export default function RequestForm({
         "Thanks! Your audit request has been received. We'll analyze your codebase and email the detailed report within 24-48 hours. Expect to hear from us soon!"
       );
       // We don't clear inputs here anymore because we'll hide the form
-    } catch (err: any) {
+    } catch (err) {
       setStatus('error');
-      setMessage(err?.message || 'Something went wrong. Please try again.');
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please try again.';
+      setMessage(errorMessage);
     }
   };
 
