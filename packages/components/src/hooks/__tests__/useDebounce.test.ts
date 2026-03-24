@@ -73,16 +73,9 @@ describe('useDebounce', () => {
   });
 
   it('should use default delay of 300ms', () => {
-<<<<<<< HEAD
-    const { result, rerender } = renderHook(
-      ({ value }) => useDebounce(value),
-      { initialProps: { value: 'initial' } }
-    );
-=======
     const { result, rerender } = renderHook(({ value }) => useDebounce(value), {
       initialProps: { value: 'initial' },
     });
->>>>>>> ec12b182 (test: add regression tests to improve testability score)
 
     rerender({ value: 'updated' });
 

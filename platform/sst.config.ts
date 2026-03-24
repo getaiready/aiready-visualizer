@@ -320,6 +320,8 @@ export default $config({
         S3_BUCKET: bucket.name,
         DYNAMO_TABLE: table.name,
         OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+        MINIMAX_API_KEY: process.env.MINIMAX_API_KEY || '',
+        MINIMAX_MODEL: process.env.MINIMAX_MODEL || 'MiniMax-M2.7',
         SES_CONFIGURATION_SET:
           'aiready-landing-production-notificationemailconfig-ttxwnzxe',
       },

@@ -31,7 +31,23 @@ export const RemediationSwarm = {
       const fsTools = await fsAdapter.getMastraTools();
 
       // 2. Resolve Model and API Key
-      const model = config.model || 'anthropic/MiniMax-M2.7';
+      let model = config.model || 'anthropic/MiniMax-M2.7';
+
+      // Ensure MiniMax models are prefixed with 'anthropic/' for Mastra
+      if (model.startsWith('MiniMax') && !model.includes('/')) {
+        model = `anthropic/${model}`;
+      }
+
+      // Set environment variables for the Anthropic provider
+      // This is required for MiniMax when used via the Anthropic compatibility layer
+      if (config.anthropicApiKey || config.minimaxApiKey) {
+        process.env.ANTHROPIC_API_KEY =
+          config.anthropicApiKey || config.minimaxApiKey;
+      }
+
+      if (config.anthropicBaseUrl) {
+        process.env.ANTHROPIC_BASE_URL = config.anthropicBaseUrl;
+      }
 
       console.log(`[RemediationSwarm] Using model: ${model}`);
 
@@ -40,40 +56,39 @@ export const RemediationSwarm = {
         id: 'refactor-agent-mcp',
         name: 'Refactor Agent (MCP Powered)',
         instructions: `
-          You are an expert full-stack engineer specialized in code consolidation and refactoring.
-          Your task is to take a detected code duplication or fragmentation issue and fix it.
+        You are an expert full-stack engineer specialized in code consolidation and refactoring.
+        Your task is to take a detected code duplication or fragmentation issue and fix it.
 
-          Context:
-          - Repository: ${repo.url}
-          - Local Path: ${rootDir} (You have full access via filesystem tools)
+        Context:
+        - Repository: ${repo.url}
+        - Local Path: ${rootDir} (You have full access via filesystem tools)
 
-          Available Toolsets:
-          - GitHub: Use for creating branches, commits, and pull requests.
-          - Filesystem: Use for reading and writing files in ${rootDir}.
+        Available Toolsets:
+        - GitHub: Use for creating branches, commits, and pull requests.
+        - Filesystem: Use for reading and writing files in ${rootDir}.
 
-          Workflow:
-          1. Research: Read the affected files using filesystem tools.
-          2. Branching: Create a new branch remotely using GitHub tools AND locally using Git/Filesystem tools if available.
-          3. Remediation: Consolidate the logic and write the changes using filesystem tools.
-          4. Persist: Commit and push the changes using GitHub/Git tools.
-          5. Finalize: Create a Pull Request with a clear description using GitHub tools.
+        Workflow:
+        1. Research: Read the affected files using filesystem tools.
+        2. Branching: Create a new branch remotely using GitHub tools AND locally using Git/Filesystem tools if available.
+        3. Remediation: Consolidate the logic and write the changes using filesystem tools.
+        4. Persist: Commit and push the changes using GitHub/Git tools.
+        5. Finalize: Create a Pull Request with a clear description using GitHub tools.
 
-          You MUST provide your final response as a VALID JSON object with this structure:
-          {
-            "status": "success" | "failure",
-            "diff": "unified diff string",
-            "prUrl": "URL of the created PR",
-            "prNumber": 123,
-            "explanation": "Brief explanation of changes"
-          }
-        `,
+        You MUST provide your final response as a VALID JSON object with this structure:
+        {
+          "status": "success" | "failure",
+          "diff": "unified diff string",
+          "prUrl": "URL of the created PR",
+          "prNumber": 123,
+          "explanation": "Brief explanation of changes"
+        }
+      `,
         model,
         tools: {
           ...githubTools,
           ...fsTools,
         },
       });
-
       console.log('[RemediationSwarm] Executing agent logic...');
 
       const prompt = `

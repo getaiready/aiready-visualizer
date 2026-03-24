@@ -4,6 +4,7 @@
 export const MIN_MAX_M27_CONFIG = {
   model: 'anthropic/MiniMax-M2.7',
   baseUrl: 'https://api.minimax.io/anthropic',
+  temperature: 1, // Recommended for MiniMax
 };
 
 /**

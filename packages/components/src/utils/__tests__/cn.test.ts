@@ -7,15 +7,10 @@ describe('cn', () => {
   });
 
   it('should handle conditional classes', () => {
-<<<<<<< HEAD
-    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz');
-    expect(cn('foo', true && 'bar', 'baz')).toBe('foo bar baz');
-=======
     const showBar = false;
     const showBaz = true;
     expect(cn('foo', showBar && 'bar', 'baz')).toBe('foo baz');
     expect(cn('foo', showBaz && 'bar', 'baz')).toBe('foo bar baz');
->>>>>>> ec12b182 (test: add regression tests to improve testability score)
   });
 
   it('should handle undefined and null values', () => {
@@ -59,13 +54,6 @@ describe('cn', () => {
   });
 
   it('should preserve non-conflicting classes', () => {
-<<<<<<< HEAD
-    expect(cn('flex', 'items-center', 'justify-center')).toBe('flex items-center justify-center');
-  });
-
-  it('should handle mixed Tailwind and custom classes', () => {
-    expect(cn('custom-class', 'p-4', 'another-class')).toBe('custom-class p-4 another-class');
-=======
     expect(cn('flex', 'items-center', 'justify-center')).toBe(
       'flex items-center justify-center'
     );
@@ -75,6 +63,5 @@ describe('cn', () => {
     expect(cn('custom-class', 'p-4', 'another-class')).toBe(
       'custom-class p-4 another-class'
     );
->>>>>>> ec12b182 (test: add regression tests to improve testability score)
   });
 });
