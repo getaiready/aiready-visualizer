@@ -11,6 +11,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@aiready/agents': path.resolve(
+        __dirname,
+        '../packages/agents/dist/index.js'
+      ),
     },
   },
 });

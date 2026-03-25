@@ -1,19 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RemediationSwarm } from '../workflows/remediation-swarm';
-import { MCPAdapter } from '../tools/mcp-adapter';
 import { Agent } from '@mastra/core/agent';
-
-// Mock MCPAdapter
-vi.mock('../tools/mcp-adapter', () => {
-  const MockAdapter = vi.fn();
-  MockAdapter.prototype.connect = vi.fn().mockResolvedValue(undefined);
-  MockAdapter.prototype.disconnect = vi.fn().mockResolvedValue(undefined);
-  MockAdapter.prototype.getMastraTools = vi.fn().mockResolvedValue({
-    'list-files': { id: 'list-files', execute: vi.fn() },
-    'create-pr': { id: 'create-pr', execute: vi.fn() },
-  });
-  return { MCPAdapter: MockAdapter };
-});
 
 // Mock Mastra Agent
 vi.mock('@mastra/core/agent', () => {
@@ -30,12 +17,54 @@ vi.mock('@mastra/core/agent', () => {
   return { Agent: MockAgent };
 });
 
-describe('RemediationSwarm (MCP Powered)', () => {
+// Mock Octokit to prevent real GitHub API calls
+vi.mock('@octokit/rest', () => {
+  class MockOctokit {
+    git = {
+      getRef: vi
+        .fn()
+        .mockResolvedValue({ data: { object: { sha: 'abc123' } } }),
+      createRef: vi.fn().mockResolvedValue({}),
+    };
+    pulls = {
+      create: vi.fn().mockResolvedValue({
+        data: { number: 1, html_url: 'https://github.com/test/repo/pull/1' },
+      }),
+    };
+  }
+  return { Octokit: MockOctokit };
+});
+
+// Mock isomorphic-git to prevent real git operations
+vi.mock('isomorphic-git', () => ({
+  branch: vi.fn().mockResolvedValue(undefined),
+  checkout: vi.fn().mockResolvedValue(undefined),
+  add: vi.fn().mockResolvedValue(undefined),
+  commit: vi.fn().mockResolvedValue('commit-sha'),
+  push: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('isomorphic-git/http/node', () => ({
+  default: {},
+}));
+
+// Mock fs/promises to prevent real filesystem access
+vi.mock('fs/promises', () => ({
+  readFile: vi.fn().mockResolvedValue('file content'),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  readdir: vi.fn().mockResolvedValue([
+    { name: 'file.ts', isDirectory: () => false },
+    { name: 'src', isDirectory: () => true },
+  ]),
+}));
+
+describe('RemediationSwarm (Direct Tools)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should successfully connect to MCP, execute agent, and parse JSON response', async () => {
+  it('should execute agent with direct tools and parse JSON response', async () => {
     const input = {
       remediation: { id: 'rem-1', type: 'consolidation' },
       repo: { url: 'https://github.com/test/repo' },
@@ -48,26 +77,35 @@ describe('RemediationSwarm (MCP Powered)', () => {
 
     const result = await RemediationSwarm.execute(input);
 
-    // Verify MCP Adapters were created and connected
-    expect(MCPAdapter).toHaveBeenCalledTimes(2);
+    // Verify Agent was created (direct tools, no MCP)
+    expect(Agent).toHaveBeenCalledTimes(1);
 
-    const mockInstances = vi.mocked(MCPAdapter).mock.instances;
-    for (const instance of mockInstances) {
-      expect(instance.connect).toHaveBeenCalled();
-      expect(instance.getMastraTools).toHaveBeenCalled();
-      expect(instance.disconnect).toHaveBeenCalled();
-    }
+    const agentCall = vi.mocked(Agent).mock.calls[0];
+    const agentConfig = agentCall[0];
+
+    // Verify tools were passed directly (not via MCP)
+    expect(agentConfig.tools).toBeDefined();
+    expect(agentConfig.tools).toHaveProperty('read-file');
+    expect(agentConfig.tools).toHaveProperty('write-file');
+    expect(agentConfig.tools).toHaveProperty('create-branch');
+    expect(agentConfig.tools).toHaveProperty('create-pr');
+    expect(agentConfig.tools).toHaveProperty('commit-and-push');
+    expect(agentConfig.tools).toHaveProperty('checkout-branch');
+    expect(agentConfig.tools).toHaveProperty('list-files');
+
+    // Verify no MCPAdapter was used (tools are direct)
+    expect(agentConfig.id).toBe('refactor-agent');
 
     // Verify result structure
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.status).toBe('success');
       expect(result.value.prUrl).toBe('https://github.com/test/repo/pull/1');
+      expect(result.value.diff).toBe('test-diff');
     }
   });
 
   it('should handle agent failures and return error status', async () => {
-    // Override mock for this specific test
     const MockAgent = vi.mocked(Agent);
     (MockAgent.prototype.generate as any).mockResolvedValueOnce({
       text: JSON.stringify({
@@ -114,5 +152,49 @@ describe('RemediationSwarm (MCP Powered)', () => {
       expect(result.value.status).toBe('success');
       expect(result.value.explanation).toContain('fallback to text response');
     }
+  });
+
+  it('should inject expert feedback into agent instructions', async () => {
+    const MockAgent = vi.mocked(Agent);
+
+    const input = {
+      remediation: { id: 'rem-4' },
+      repo: { url: 'https://github.com/test/repo' },
+      rootDir: '/tmp/test',
+      config: {
+        githubToken: 'token',
+        expertFeedback: 'Please also update the test file',
+        previousDiff: '--- a/file.ts\n+++ b/file.ts',
+      },
+    };
+
+    await RemediationSwarm.execute(input);
+
+    // Verify expert feedback was included in agent instructions
+    const agentCall = MockAgent.mock.calls[MockAgent.mock.calls.length - 1];
+    const instructions = agentCall[0].instructions as string;
+    expect(instructions).toContain('EXPERT FEEDBACK ON YOUR PREVIOUS ATTEMPT');
+    expect(instructions).toContain('Please also update the test file');
+    expect(instructions).toContain('--- a/file.ts\n+++ b/file.ts');
+  });
+
+  it('should use MiniMax model when configured', async () => {
+    const input = {
+      remediation: { id: 'rem-5' },
+      repo: { url: 'https://github.com/test/repo' },
+      rootDir: '/tmp/test',
+      config: {
+        githubToken: 'token',
+        model: 'MiniMax-M2.7',
+        anthropicApiKey: 'mm-key',
+        anthropicBaseUrl: 'https://api.minimax.io/anthropic',
+      },
+    };
+
+    await RemediationSwarm.execute(input);
+
+    const agentCall =
+      vi.mocked(Agent).mock.calls[vi.mocked(Agent).mock.calls.length - 1];
+    expect(agentCall[0].model).toBe('anthropic/MiniMax-M2.7');
   });
 });

@@ -8,12 +8,41 @@ import { getRemediation, updateRemediation } from '../lib/db/remediation';
 import { getRepository } from '../lib/db/repositories';
 import { getUser } from '../lib/db/users';
 import { sendRemediationNotificationEmail } from '../lib/email';
-
-// Force bundling of agents for dynamic loading
-import '../../../packages/agents';
+import { RemediationSwarm } from '@aiready/agents';
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || 'https://platform.getaiready.dev';
+
+const AGENT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Wrap a promise with a timeout.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${label} timed out after ${ms}ms`)),
+        ms
+      )
+    ),
+  ]);
+}
+
+interface SQSMessageBody {
+  remediationId: string;
+  repoId: string;
+  userId: string;
+  accessToken?: string;
+  type?: string;
+  expertFeedback?: string;
+  previousDiff?: string;
+}
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
@@ -22,17 +51,35 @@ export async function handler(event: SQSEvent) {
       repoId,
       userId: _userId,
       accessToken,
-    } = JSON.parse(record.body) as {
-      remediationId: string;
-      repoId: string;
-      userId: string;
-      accessToken?: string;
-    };
+      expertFeedback,
+      previousDiff,
+    } = JSON.parse(record.body) as SQSMessageBody;
 
     const userId = _userId;
 
+    // Validate required fields
+    if (!remediationId || !repoId || !userId) {
+      console.error(
+        `[RemediationWorker] Invalid SQS message: missing required fields`
+      );
+      continue;
+    }
+
+    // Validate LLM API key is configured before doing expensive work
+    const apiKey = process.env.MINIMAX_API_KEY || process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error(
+        `[RemediationWorker] No LLM API key configured (MINIMAX_API_KEY or ANTHROPIC_API_KEY)`
+      );
+      await updateRemediation(remediationId, {
+        status: 'failed',
+        agentStatus: 'Error: LLM API key not configured. Contact support.',
+      });
+      continue;
+    }
+
     console.log(
-      `[RemediationWorker] Processing remediation ${remediationId} for repo ${repoId}`
+      `[RemediationWorker] Processing remediation ${remediationId} for repo ${repoId}${expertFeedback ? ' (with expert feedback)' : ''}`
     );
 
     const [remediation, repo, user] = await Promise.all([
@@ -66,37 +113,37 @@ export async function handler(event: SQSEvent) {
         onAuth: () => ({ username: accessToken || '', password: '' }),
       });
 
-      // Import Mastra Agents and Workflows
-      // We use dynamic imports to keep the initial load light
-      const { RemediationSwarm } = await import('@aiready/agents');
-
       await updateRemediation(remediationId, {
         agentStatus:
           'Remediation Swarm active: Researching issue and planning fix...',
       });
 
-      // Execute the Mastra Workflow
-      // Note: This is where the real LLM magic happens
-      const result = await RemediationSwarm.execute({
+      // Execute the Mastra Workflow with timeout protection
+      const executePromise = RemediationSwarm.execute({
         remediation,
         repo,
         rootDir: tempDir,
-        // Pass necessary credentials/config for the agents
         config: {
           githubToken: accessToken,
           openaiApiKey: process.env.OPENAI_API_KEY,
           anthropicApiKey: process.env.MINIMAX_API_KEY,
           anthropicBaseUrl: 'https://api.minimax.io/anthropic',
           model: process.env.MINIMAX_MODEL || 'MiniMax-M2.7',
+          expertFeedback,
+          previousDiff,
         },
       });
+
+      const result = await withTimeout(
+        executePromise,
+        AGENT_TIMEOUT_MS,
+        'RemediationSwarm.execute'
+      );
 
       console.log(
         `[RemediationWorker] Workflow execution completed for ${remediationId}`
       );
 
-      // The workflow itself should have updated the remediation status
-      // via its own tool calls, but we do a final check/update here.
       if (result.ok && result.value) {
         const { prUrl, prNumber, diff, status, reasoning } =
           result.value as any;

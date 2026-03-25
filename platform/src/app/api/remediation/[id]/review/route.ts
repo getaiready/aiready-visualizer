@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getRemediation, updateRemediation } from '@/lib/db/remediation';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { Resource } from 'sst';
+
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION || 'ap-southeast-2',
+});
 
 /**
  * Expert Review Endpoint
  * POST /api/remediation/[id]/review
+ *
+ * On approve: triggers real PR creation via the remediation worker.
+ * On request-changes: re-enqueues with expert feedback so the agent revises.
  */
 export async function POST(
   req: NextRequest,
@@ -38,45 +47,73 @@ export async function POST(
       );
     }
 
-    const update: any = {
+    const accessToken = (session.user as any).accessToken;
+
+    if (decision === 'approve') {
+      // Expert approved — trigger the remediation worker to create a real PR
+      await updateRemediation(remediationId, {
+        status: 'approved',
+        agentStatus: 'Expert approved. Starting refactor agent...',
+        reviewFeedback: {
+          userId: session.user.id,
+          comment,
+          decision,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      console.log(
+        `[ReviewAPI] Expert approved ${remediationId}, enqueueing PR creation`
+      );
+
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: (Resource as any).RemediationQueue.url,
+          MessageBody: JSON.stringify({
+            remediationId,
+            repoId: remediation.repoId,
+            userId: session.user.id,
+            accessToken,
+            type: 'swarm',
+          }),
+        })
+      );
+
+      return NextResponse.json({ success: true, status: 'approved' });
+    }
+
+    // Expert requested changes — re-enqueue with feedback for agent iteration
+    await updateRemediation(remediationId, {
+      status: 'in-progress',
+      agentStatus: `Expert requested changes: "${comment.substring(0, 50)}..."`,
       reviewFeedback: {
         userId: session.user.id,
         comment,
         decision,
         timestamp: new Date().toISOString(),
       },
-    };
+    });
 
-    if (decision === 'approve') {
-      update.status = 'approved';
-      update.agentStatus = 'Expert approved. Preparing Pull Request...';
+    console.log(
+      `[ReviewAPI] Expert requested changes on ${remediationId}, enqueueing revision`
+    );
 
-      // Simulate PR trigger
-      setTimeout(async () => {
-        await updateRemediation(remediationId, {
-          status: 'pr-created',
-          prUrl: `https://github.com/aiready/demo/pull/${Math.floor(Math.random() * 1000)}`,
-          agentStatus: 'Remediation successfully merged to main.',
-        });
-      }, 3000);
-    } else {
-      update.status = 'in-progress';
-      update.agentStatus = `Expert requested changes: "${comment.substring(0, 50)}..."`;
+    await sqs.send(
+      new SendMessageCommand({
+        QueueUrl: (Resource as any).RemediationQueue.url,
+        MessageBody: JSON.stringify({
+          remediationId,
+          repoId: remediation.repoId,
+          userId: session.user.id,
+          accessToken,
+          type: 'swarm',
+          expertFeedback: comment,
+          previousDiff: remediation.suggestedDiff,
+        }),
+      })
+    );
 
-      // Simulate iteration
-      setTimeout(async () => {
-        await updateRemediation(remediationId, {
-          status: 'reviewing',
-          agentStatus:
-            'Agent has incorporated expert feedback. Ready for re-review.',
-          suggestedDiff: '--- modified code with feedback updates ---',
-        });
-      }, 5000);
-    }
-
-    await updateRemediation(remediationId, update);
-
-    return NextResponse.json({ success: true, status: update.status });
+    return NextResponse.json({ success: true, status: 'in-progress' });
   } catch (error) {
     console.error('[ReviewAPI] Error:', error);
     return NextResponse.json(

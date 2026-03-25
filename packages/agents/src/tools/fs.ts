@@ -19,7 +19,10 @@ export const fsTools = {
     }),
     execute: async ({ rootDir, filePath }) => {
       try {
-        const fullPath = path.join(rootDir, filePath);
+        const fullPath = path.resolve(rootDir, filePath);
+        if (!fullPath.startsWith(path.resolve(rootDir))) {
+          return { error: 'Access denied: path traversal attempt' };
+        }
         const content = fs.readFileSync(fullPath, 'utf-8');
         return { content };
       } catch (error) {
@@ -44,7 +47,13 @@ export const fsTools = {
     }),
     execute: async ({ rootDir, filePath, content }) => {
       try {
-        const fullPath = path.join(rootDir, filePath);
+        const fullPath = path.resolve(rootDir, filePath);
+        if (!fullPath.startsWith(path.resolve(rootDir))) {
+          return {
+            success: false,
+            error: 'Access denied: path traversal attempt',
+          };
+        }
         // Ensure directory exists
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });
         fs.writeFileSync(fullPath, content, 'utf-8');

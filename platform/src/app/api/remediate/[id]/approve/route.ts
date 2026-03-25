@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getRemediation, updateRemediation } from '@/lib/db/remediation';
+import { getRepository } from '@/lib/db/repositories';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { Resource } from 'sst';
+
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION || 'ap-southeast-2',
+});
 
 export async function POST(
   req: NextRequest,
@@ -21,16 +28,42 @@ export async function POST(
       );
     }
 
-    // 1. Update status to 'approved'
+    // Fetch repo to verify ownership and get repo URL for the worker
+    const repo = await getRepository(remediation.repoId);
+    if (!repo) {
+      return NextResponse.json(
+        { error: 'Repository not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify ownership
+    if (remediation.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 1. Update status to 'approved' and trigger agent execution
     await updateRemediation(id, {
       status: 'approved',
       agentStatus: 'Human approved. Starting refactor agent...',
     });
 
-    // 2. Trigger the remediation cycle (reusing the logic from /api/remediate)
-    // In a real implementation, this would trigger an SQS event.
     console.log(
-      `[ApprovalAPI] Triggering refactor for ${id} after human approval`
+      `[ApprovalAPI] Enqueueing remediation ${id} after human approval`
+    );
+
+    // 2. Send SQS message to trigger the remediation worker
+    await sqs.send(
+      new SendMessageCommand({
+        QueueUrl: (Resource as any).RemediationQueue.url,
+        MessageBody: JSON.stringify({
+          remediationId: id,
+          repoId: remediation.repoId,
+          userId: session.user.id,
+          accessToken: (session.user as any).accessToken,
+          type: 'swarm',
+        }),
+      })
     );
 
     return NextResponse.json({

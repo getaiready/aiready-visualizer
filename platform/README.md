@@ -133,49 +133,110 @@ The platform includes an automated code remediation system that improves AI-read
 #### Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         REMEDIATION FLOW                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  [Analysis Spokes]                                                  │
-│  pattern-detect, context-analyzer, consistency                      │
-│         │                                                           │
-│         ▼                                                           │
-│  [RemediationRequest] ──► DynamoDB (status: pending)               │
-│         │                                                           │
-│         ▼                                                           │
-│  [User Approves in UI] ──► POST /api/remediate                      │
-│         │                                                           │
-│         ▼                                                           │
-│  [SQS Queue] ──► RemediationWorker (Lambda)                         │
-│         │                                                           │
-│         │  ┌────────────────────────────────────────────────────┐   │
-│         │  │  1. Clone repo to /tmp                             │   │
-│         │  │  2. Load RemediationSwarm from @aiready/agents    │   │
-│         │  │  3. Execute Mastra agent with MCP tools:          │   │
-│         │  │     - GitHub: create branch, commit, PR            │   │
-│         │  │     - Filesystem: read/write files                │   │
-│         │  │  4. Create Pull Request for expert review         │   │
-│         │  └────────────────────────────────────────────────────┘   │
-│         │                                                           │
-│         ▼                                                           │
-│  [Status: reviewing] ──► PR URL stored in DynamoDB                  │
-│         │                                                           │
-│         ▼                                                           │
-│  [Expert Review in GitHub] ──► Approve/Reject                       │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          REMEDIATION FLOW                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  [Analysis Spokes]                                                      │
+│  pattern-detect, context-analyzer, consistency                          │
+│         │                                                               │
+│         ▼                                                               │
+│  [RemediationRequest] ──► DynamoDB (status: pending)                   │
+│         │                                                               │
+│         ▼                                                               │
+│  [User Approves in UI]                                                  │
+│         │                                                               │
+│         ├──► POST /api/remediate/[id]/approve ──► SQS Queue            │
+│         │     (initial trigger)                                         │
+│         │                                                               │
+│  [Expert Review Panel]                                                  │
+│         │                                                               │
+│         ├──► POST /api/remediation/[id]/review ──► SQS Queue           │
+│         │     (approve: triggers PR creation)                           │
+│         │     (request-changes: re-enqueues with expert feedback)       │
+│         │                                                               │
+│         ▼                                                               │
+│  [SQS Queue] ──► RemediationWorker (Lambda)                             │
+│         │                                                               │
+│         │  ┌────────────────────────────────────────────────────────┐   │
+│         │  │  1. Validate SQS message fields + LLM API key         │   │
+│         │  │  2. Clone repo to /tmp via isomorphic-git             │   │
+│         │  │  3. RemediationSwarm.execute()                        │   │
+│         │  │     ├─ Create direct tools (Octokit + fs/promises)    │   │
+│         │  │     ├─ Build Mastra Agent with tools + instructions   │   │
+│         │  │     ├─ Inject expert feedback (if re-run)             │   │
+│         │  │     ├─ Execute with 3x retry + exponential backoff   │   │
+│         │  │     └─ Parse JSON response (balanced-brace extractor) │   │
+│         │  │  4. Update DynamoDB (status: reviewing, diff, PR URL) │   │
+│         │  │  5. Send SES email notification                       │   │
+│         │  │  6. Cleanup /tmp                                      │   │
+│         │  │                                                        │   │
+│         │  │  Timeout: 5 minutes | Model: MiniMax-M2.7             │   │
+│         │  └────────────────────────────────────────────────────────┘   │
+│         │                                                               │
+│         ▼                                                               │
+│  [Status: reviewing] ──► PR URL + suggestedDiff stored in DynamoDB      │
+│         │                                                               │
+│         ▼                                                               │
+│  [Expert Review in Dashboard]                                           │
+│         │                                                               │
+│         ├── Approve ──► SQS ──► Worker creates real GitHub PR           │
+│         └── Request Changes ──► SQS ──► Agent re-runs with feedback     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Key Components
 
-| Component              | Location                         | Purpose                                        |
-| ---------------------- | -------------------------------- | ---------------------------------------------- |
-| `RemediationQueue.tsx` | `src/app/.../components/`        | UI for viewing/managing remediation queue      |
-| `RemediationWorker`    | `src/worker/remediation.ts`      | AWS Lambda handler for processing remediations |
-| `RemediationSwarm`     | `packages/agents/src/workflows/` | Mastra AI agent workflow                       |
-| `github.ts`            | `packages/agents/src/tools/`     | GitHub MCP tools (branch, commit, PR)          |
-| `fs.ts`                | `packages/agents/src/tools/`     | Filesystem MCP tools (read/write files)        |
+| Component              | Location                         | Purpose                                             |
+| ---------------------- | -------------------------------- | --------------------------------------------------- |
+| `RemediationQueue.tsx` | `src/app/.../components/`        | UI for viewing/managing remediation queue           |
+| `RemediationWorker`    | `src/worker/remediation.ts`      | Lambda handler: clone, run agent, update DB, notify |
+| `RemediationSwarm`     | `packages/agents/src/workflows/` | Mastra Agent with direct tools (no MCP/Lambda-safe) |
+| `github.ts`            | `packages/agents/src/tools/`     | Standalone GitHub tools (Octokit)                   |
+| `fs.ts`                | `packages/agents/src/tools/`     | Standalone filesystem tools (isomorphic-git + fs)   |
+| `extractJson()`        | `packages/agents/src/workflows/` | Balanced-brace JSON parser for agent responses      |
+| `withRetry()`          | `packages/agents/src/workflows/` | Exponential backoff wrapper (3 attempts, 2s/4s/8s)  |
+
+#### Data Flow (SQS Messages)
+
+```json
+// Initial trigger (/api/remediate or /api/remediate/[id]/approve)
+{
+  "remediationId": "rem-xxx",
+  "repoId": "repo-xxx",
+  "userId": "user-xxx",
+  "accessToken": "ghp_xxx",
+  "type": "swarm"
+}
+
+// Expert review with feedback (/api/remediation/[id]/review, decision: "request-changes")
+{
+  "remediationId": "rem-xxx",
+  "repoId": "repo-xxx",
+  "userId": "user-xxx",
+  "accessToken": "ghp_xxx",
+  "type": "swarm",
+  "expertFeedback": "Also update the test file",
+  "previousDiff": "--- a/file.ts\n+++ b/file.ts"
+}
+```
+
+#### Direct Tools (Lambda-Compatible)
+
+The agent uses pre-bound direct tools instead of MCP server spawning (which fails in Lambda):
+
+| Tool              | Backend          | Pre-bound Context        |
+| ----------------- | ---------------- | ------------------------ |
+| `read-file`       | `fs/promises`    | `rootDir`                |
+| `write-file`      | `fs/promises`    | `rootDir`                |
+| `list-files`      | `fs/promises`    | `rootDir`                |
+| `create-branch`   | `@octokit/rest`  | `repoUrl`, `githubToken` |
+| `checkout-branch` | `isomorphic-git` | `rootDir`                |
+| `commit-and-push` | `isomorphic-git` | `rootDir`, `githubToken` |
+| `create-pr`       | `@octokit/rest`  | `repoUrl`, `githubToken` |
+
+All filesystem tools include path traversal protection (`path.resolve` + prefix check).
 
 #### Remediation Types
 
@@ -190,6 +251,10 @@ The platform includes an automated code remediation system that improves AI-read
 2. **PR-based**: Changes are submitted as Pull Requests for review
 3. **In-progress blocking**: UI prevents approving new remediations while one is running
 4. **Single-threaded**: SQS processes messages sequentially
+5. **LLM API key validation**: Worker fails fast if no key is configured
+6. **5-minute timeout**: Agent execution is bounded
+7. **Path traversal protection**: Filesystem tools reject `../` escapes
+8. **Retry with backoff**: Transient LLM failures are retried 3x
 
 #### Database Schema
 
@@ -207,6 +272,7 @@ GSI3: `TEAM#{teamId}` - For listing remediations by team
 - DynamoDB repo-level locking for concurrent safety
 - File overlap detection before execution
 - Autonomous mode with auto-approve for trusted repos
+- WebSocket real-time status updates (replace 5s polling)
 
 ## License
 
