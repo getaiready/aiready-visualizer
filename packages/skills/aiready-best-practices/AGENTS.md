@@ -28,42 +28,32 @@ consistency checking, documentation, testability, and dependency management.
 
 ## Table of Contents
 
-1. [Pattern Detection (patterns)](#1-pattern-detection-patterns) (CRITICAL)
-   - 1.1
-     [Avoid Semantic Duplicate Patterns](#11-avoid-semantic-duplicate-patterns)
+1. [Pattern Detection (patterns)](<#1-pattern-detection-(patterns)>) (CRITICAL)
+   - 1.1 [Avoid Semantic Duplicate Patterns](#11-avoid-semantic-duplicate-patterns)
    - 1.2 [Unify Fragmented Interfaces](#12-unify-fragmented-interfaces)
-2. [Context Optimization (context)](#2-context-optimization-context) (HIGH)
+2. [Context Optimization (context)](<#2-context-optimization-(context)>) (HIGH)
    - 2.1 [Keep Import Chains Shallow](#21-keep-import-chains-shallow)
    - 2.2 [Maintain High Module Cohesion](#22-maintain-high-module-cohesion)
-   - 2.3 [Split Large Files (>500 lines)](#23-split-large-files-500-lines)
-3. [Consistency Checking (consistency)](#3-consistency-checking-consistency)
-   (MEDIUM)
-   - 3.1
-     [Follow Consistent Naming Conventions](#31-follow-consistent-naming-conventions)
-   - 3.2
-     [Use Consistent Error Handling Patterns](#32-use-consistent-error-handling-patterns)
-4. [AI Signal Clarity (signal)](#4-ai-signal-clarity-signal) (CRITICAL)
+   - 2.3 [Split Large Files (>500 lines)](<#23-split-large-files-(%3E500-lines)>)
+3. [Consistency Checking (consistency)](<#3-consistency-checking-(consistency)>) (MEDIUM)
+   - 3.1 [Follow Consistent Naming Conventions](#31-follow-consistent-naming-conventions)
+   - 3.2 [Use Consistent Error Handling Patterns](#32-use-consistent-error-handling-patterns)
+4. [AI Signal Clarity (signal)](<#4-ai-signal-clarity-(signal)>) (CRITICAL)
    - 4.1 [Avoid Boolean Trap Parameters](#41-avoid-boolean-trap-parameters)
    - 4.2 [Avoid High-Entropy Naming](#42-avoid-high-entropy-naming)
    - 4.3 [Avoid Magic Literals](#43-avoid-magic-literals)
-   - 4.4 [Avoid Redundant Type Constants](#44-avoid-redundant-type-constants)
-5. [Change Amplification (amplification)](#5-change-amplification-amplification)
-   (HIGH)
-   - 5.1
-     [Avoid Change Amplification Hotspots](#51-avoid-change-amplification-hotspots)
-6. [Agent Grounding (grounding)](#6-agent-grounding-grounding) (HIGH)
+5. [Change Amplification (amplification)](<#5-change-amplification-(amplification)>) (HIGH)
+   - 5.1 [Avoid Change Amplification Hotspots](#51-avoid-change-amplification-hotspots)
+6. [Agent Grounding (grounding)](<#6-agent-grounding-(grounding)>) (HIGH)
    - 6.1 [Define Clear Context Boundaries](#61-define-clear-context-boundaries)
    - 6.2 [Write Agent-Actionable READMEs](#62-write-agent-actionable-readmes)
-7. [Testability (testability)](#7-testability-testability) (MEDIUM)
+7. [Testability (testability)](<#7-testability-(testability)>) (MEDIUM)
    - 7.1 [Maintain Verification Coverage](#71-maintain-verification-coverage)
    - 7.2 [Write Pure Functions](#72-write-pure-functions)
-8. [Documentation (docs)](#8-documentation-docs) (MEDIUM)
-   - 8.1
-     [Keep Documentation in Sync with Code](#81-keep-documentation-in-sync-with-code)
-9. [Codebase Health Assessment (assessment)](#9-codebase-health-assessment-assessment)
-   (HIGH)
-   - 9.1
-     [Run Unified Codebase Health Scan](#91-run-unified-codebase-health-scan)
+8. [Documentation (docs)](<#8-documentation-(docs)>) (MEDIUM)
+   - 8.1 [Keep Documentation in Sync with Code](#81-keep-documentation-in-sync-with-code)
+9. [Codebase Health Assessment (assessment)](<#9-codebase-health-assessment-(assessment)>) (HIGH)
+   - 9.1 [Run Unified Codebase Health Scan](#91-run-unified-codebase-health-scan)
 
 ---
 
@@ -225,8 +215,7 @@ hallucination.
 **Benefits for AI:** Reduces context waste by 25-40% and ensures the agent loads
 only the minimal relevant code for a task.
 
-Reference:
-[https://en.wikipedia.org/wiki/Cohesion\_(computer_science)](<https://en.wikipedia.org/wiki/Cohesion_(computer_science)>)
+Reference: [https://en.wikipedia.org/wiki/Cohesion\_(computer_science)](<https://en.wikipedia.org/wiki/Cohesion_(computer_science)>)
 
 ### 2.3 Split Large Files (>500 lines)
 
@@ -457,86 +446,6 @@ intent of the check.
 
 **Detection tip:** Run `npx @aiready/ai-signal-clarity` to identify magic
 literal clusters that need extraction.
-
-Reference: [https://getaiready.dev/docs](https://getaiready.dev/docs)
-
-### 4.4 Avoid Redundant Type Constants
-
-**Impact: MEDIUM (Boilerplate constants for primitive types add noise and reduce
-semantic transparency)**
-
-_Tags: signal, clean-code, typescript, json-schema_
-
-Defining local constants like `const TYPE_STRING = 'string'` or
-`const TYPE_OBJECT = 'object'` for JSON Schema types is redundant in modern
-TypeScript codebases. These constants add an indirection layer that requires a
-lookup without providing functional benefit, as these are already primitive
-types.
-
-### Core Principles
-
-- **Direct Literals:** Use 'string', 'object', 'array', etc. directly in schemas
-  for transparency.
-- **TypeScript Union Types:** Use TypeScript's native type system (e.g.,
-  `type: 'string' | 'object' | 'array'`) for IDE autocompletion and safety.
-- **Centralized Types:** If constants are required for system-wide refactors,
-  they should be in a central `types.ts` rather than redefined per file.
-
-### Guidelines
-
-- **Incorrect:**
-
-```typescript
-const TYPE_STRING = 'string';
-const TYPE_OBJECT = 'object';
-
-const schema = {
-  type: TYPE_OBJECT,
-  properties: {
-    name: { type: TYPE_STRING },
-  },
-};
-```
-
-- **Correct:**
-
-```typescript
-const schema = {
-  type: 'object',
-  properties: {
-    name: { type: 'string' },
-  },
-};
-```
-
-**Advice for developer:** Favor "AI-native" code where transparency is key.
-Models and humans working with JSON Schema expect literals. indirection layers
-like local constants for primitives should be removed.
-
-**Incorrect:**
-
-```typescript
-const TYPE_STRING = 'string';
-const TYPE_OBJECT = 'object';
-
-const schema = {
-  type: TYPE_OBJECT,
-  properties: {
-    name: { type: TYPE_STRING },
-  },
-};
-```
-
-**Correct:**
-
-```typescript
-const schema = {
-  type: 'object',
-  properties: {
-    name: { type: 'string' },
-  },
-};
-```
 
 Reference: [https://getaiready.dev/docs](https://getaiready.dev/docs)
 
