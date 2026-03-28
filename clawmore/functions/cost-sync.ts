@@ -10,12 +10,14 @@ import {
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { reportOverageCharge } from '../lib/billing';
+import { sendCloudCostWarningEmail } from '../lib/email';
 
 const ceClient = new CostExplorerClient({ region: 'us-east-1' });
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
 const COMPUTE_INCLUSION_CENTS = 1500; // $15.00
+const COST_WARNING_THRESHOLD = 0.8; // Warn at 80% of inclusion ($12)
 
 export const handler = async (_event: any) => {
   console.log('Starting Managed Account Cost Sync...');
@@ -85,7 +87,55 @@ export const handler = async (_event: any) => {
         })
       );
 
-      // 2. Check for overage
+      // 2. Check for low-balance warning (80% of inclusion)
+      const warningThreshold = COMPUTE_INCLUSION_CENTS * COST_WARNING_THRESHOLD;
+      const hasSentWarning = account.costWarningSent || false;
+
+      if (
+        costCents >= warningThreshold &&
+        costCents <= COMPUTE_INCLUSION_CENTS &&
+        !hasSentWarning
+      ) {
+        console.log(
+          `Sending cost warning for account ${awsAccountId} ($${(costCents / 100).toFixed(2)} / $${(COMPUTE_INCLUSION_CENTS / 100).toFixed(2)})`
+        );
+
+        const ownerEmail = account.ownerEmail;
+        if (ownerEmail) {
+          sendCloudCostWarningEmail(
+            ownerEmail,
+            costCents,
+            COMPUTE_INCLUSION_CENTS
+          ).catch((err) =>
+            console.error('Failed to send cost warning email:', err)
+          );
+        }
+
+        // Mark warning as sent
+        await docClient.send(
+          new UpdateCommand({
+            TableName: process.env.DYNAMO_TABLE,
+            Key: { PK: account.PK, SK: account.SK },
+            UpdateExpression: 'SET costWarningSent = :sent',
+            ExpressionAttributeValues: {
+              ':sent': true,
+            },
+          })
+        );
+      }
+
+      // Reset warning flag on new month (when cost drops back below threshold)
+      if (costCents < warningThreshold && hasSentWarning) {
+        await docClient.send(
+          new UpdateCommand({
+            TableName: process.env.DYNAMO_TABLE,
+            Key: { PK: account.PK, SK: account.SK },
+            UpdateExpression: 'REMOVE costWarningSent',
+          })
+        );
+      }
+
+      // 3. Check for overage
       if (costCents > COMPUTE_INCLUSION_CENTS && account.stripeCustomerId) {
         const totalOverage = costCents - COMPUTE_INCLUSION_CENTS;
         const previouslyReportedOverage = account.reportedOverageCents || 0;

@@ -276,3 +276,125 @@ export async function getProvisioningStatus(email: string): Promise<{
   if (hasFailed) return { status: 'failed', accounts };
   return { status: 'complete', accounts };
 }
+
+/**
+ * Deduct credits from user's AI token balance.
+ * Returns the new balance in cents.
+ * If balance drops to 0 or below, the account is suspended.
+ */
+export async function deductCredits(
+  email: string,
+  costCents: number
+): Promise<{ newBalance: number; suspended: boolean }> {
+  const PK = `USER#${email}`;
+  const SK = `METADATA`;
+
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.DYNAMO_TABLE,
+      Key: { PK, SK },
+      UpdateExpression: 'SET aiTokenBalanceCents = aiTokenBalanceCents - :cost',
+      ExpressionAttributeValues: {
+        ':cost': costCents,
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+
+  const newBalance = result.Attributes?.aiTokenBalanceCents ?? 0;
+
+  if (newBalance <= 0) {
+    await suspendAccount(email);
+    return { newBalance: 0, suspended: true };
+  }
+
+  return { newBalance, suspended: false };
+}
+
+/**
+ * Suspend a user account — blocks mutation activity.
+ */
+export async function suspendAccount(email: string): Promise<void> {
+  const PK = `USER#${email}`;
+  const SK = `METADATA`;
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.DYNAMO_TABLE,
+      Key: { PK, SK },
+      UpdateExpression: 'SET accountStatus = :status, suspendedAt = :now',
+      ExpressionAttributeValues: {
+        ':status': 'SUSPENDED',
+        ':now': new Date().toISOString(),
+      },
+    })
+  );
+}
+
+/**
+ * Resume a suspended user account after recharge.
+ */
+export async function resumeAccount(email: string): Promise<void> {
+  const PK = `USER#${email}`;
+  const SK = `METADATA`;
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.DYNAMO_TABLE,
+      Key: { PK, SK },
+      UpdateExpression:
+        'SET accountStatus = :status, resumedAt = :now REMOVE suspendedAt',
+      ExpressionAttributeValues: {
+        ':status': 'ACTIVE',
+        ':now': new Date().toISOString(),
+      },
+    })
+  );
+}
+
+/**
+ * Add credits to user's AI token balance.
+ * If account was suspended, auto-resume it.
+ */
+export async function addCredits(
+  email: string,
+  amountCents: number
+): Promise<{ newBalance: number; wasSuspended: boolean }> {
+  const PK = `USER#${email}`;
+  const SK = `METADATA`;
+
+  // Check current status
+  const current = await getUserMetadata(email);
+  const wasSuspended = (current as any)?.accountStatus === 'SUSPENDED';
+
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.DYNAMO_TABLE,
+      Key: { PK, SK },
+      UpdateExpression:
+        'SET aiTokenBalanceCents = if_not_exists(aiTokenBalanceCents, :zero) + :amount',
+      ExpressionAttributeValues: {
+        ':amount': amountCents,
+        ':zero': 0,
+      },
+      ReturnValues: 'ALL_NEW',
+    })
+  );
+
+  const newBalance = result.Attributes?.aiTokenBalanceCents ?? 0;
+
+  // Auto-resume if was suspended and now has credits
+  if (wasSuspended && newBalance > 0) {
+    await resumeAccount(email);
+  }
+
+  return { newBalance, wasSuspended };
+}
+
+/**
+ * Check if a user account is suspended.
+ */
+export async function isAccountSuspended(email: string): Promise<boolean> {
+  const metadata = await getUserMetadata(email);
+  return (metadata as any)?.accountStatus === 'SUSPENDED';
+}

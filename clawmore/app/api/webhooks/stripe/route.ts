@@ -7,7 +7,9 @@ import {
   sendApprovalEmail,
   sendPaymentFailedEmail,
   sendSubscriptionCancelledEmail,
+  sendAutoTopupSuccessEmail,
 } from '../../../../lib/email';
+import { addCredits } from '../../../../lib/db';
 import { createLogger } from '../../../../lib/logger';
 
 const log = createLogger('stripe-webhook');
@@ -209,17 +211,30 @@ export async function POST(req: NextRequest) {
           const userItem = res.Items?.[0];
           if (userItem) {
             const userId = userItem.PK.replace('USER#', '');
-            await docClient.update({
-              TableName,
-              Key: { PK: `USER#${userId}`, SK: 'METADATA' },
-              UpdateExpression:
-                'SET aiTokenBalanceCents = if_not_exists(aiTokenBalanceCents, :zero) + :amount',
-              ExpressionAttributeValues: {
-                ':amount': amountCents,
-                ':zero': 0,
-              },
-            });
-            log.info({ userId, amountCents }, 'AI credits topped up');
+            const email = userItem.email || userItem.GSI1SK;
+
+            // Use addCredits which handles suspended account resumption
+            if (email) {
+              const result = await addCredits(email, amountCents);
+              log.info(
+                {
+                  userId,
+                  amountCents,
+                  newBalance: result.newBalance,
+                  wasSuspended: result.wasSuspended,
+                },
+                'AI credits topped up'
+              );
+
+              // Notify user of successful top-up
+              sendAutoTopupSuccessEmail(
+                email,
+                amountCents,
+                result.newBalance
+              ).catch((err) =>
+                log.error({ err }, 'Failed to send top-up success email')
+              );
+            }
           }
         }
         break;

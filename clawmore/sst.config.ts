@@ -234,6 +234,18 @@ export default $config({
       },
     });
 
+    new sst.aws.Cron('AutoTopupCron', {
+      schedule: 'rate(1 hour)',
+      job: {
+        handler: 'functions/auto-topup-check.handler',
+        timeout: '5 minutes',
+        link: [table],
+        environment: {
+          STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
+        },
+      },
+    });
+
     const site = new sst.aws.Nextjs('ClawMoreSite', {
       path: '.',
       dev: {

@@ -156,3 +156,140 @@ export async function sendSubscriptionCancelledEmail(to: string, name: string) {
     `Hi ${name}, your subscription has been cancelled and your account moved to the free tier. View plans at ${pricingUrl}`
   );
 }
+
+// --- Credit & Cost Warning Emails ---
+
+export async function sendLowBalanceWarningEmail(
+  to: string,
+  balanceCents: number,
+  thresholdCents: number
+) {
+  const dashboardUrl = `${appUrl}/dashboard?tab=account`;
+  const balanceStr = `$${(balanceCents / 100).toFixed(2)}`;
+  const thresholdStr = `$${(thresholdCents / 100).toFixed(2)}`;
+
+  const html = emailWrapper(`
+    <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #fbbf24;">Low AI Credit Balance</h2>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Your AI credit balance is running low. Once credits are depleted, all mutation activity will be paused.</p>
+    <div style="text-align: left; margin-bottom: 24px; padding: 16px; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2); border-radius: 4px;">
+      <p style="color: #fbbf24; font-size: 13px; margin: 0 0 8px; font-weight: 700;">Current Status:</p>
+      <p style="color: #d4d4d8; font-size: 13px; margin: 0 0 4px;">Balance: <strong style="color: #fbbf24;">${balanceStr}</strong></p>
+      <p style="color: #d4d4d8; font-size: 13px; margin: 0;">Auto-topup threshold: ${thresholdStr}</p>
+    </div>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">If you have auto-topup enabled, we'll charge your card when your balance drops below ${thresholdStr}. Otherwise, please recharge manually.</p>
+    <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #00e0ff; color: #000000; text-decoration: none; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Recharge Credits</a>
+  `);
+
+  await sendEmail(
+    to,
+    'Low AI Credit Balance — ClawMore',
+    html,
+    `Your AI credit balance is ${balanceStr} (threshold: ${thresholdStr}). Recharge at ${dashboardUrl} to keep mutations running.`
+  );
+}
+
+export async function sendAccountSuspendedEmail(to: string) {
+  const dashboardUrl = `${appUrl}/dashboard?tab=account`;
+
+  const html = emailWrapper(`
+    <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #f87171;">Account Suspended — Insufficient Credits</h2>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Your AI credit balance has reached $0. All mutation activity has been paused to prevent unauthorized charges.</p>
+    <div style="text-align: left; margin-bottom: 24px; padding: 16px; background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.2); border-radius: 4px;">
+      <p style="color: #f87171; font-size: 13px; margin: 0 0 8px; font-weight: 700;">What happened:</p>
+      <ul style="color: #d4d4d8; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
+        <li>AI credits depleted to $0</li>
+        <li>All mutation activity paused</li>
+        <li>AWS infrastructure still running (billed monthly)</li>
+      </ul>
+    </div>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Recharge your credits to resume automated code evolution.</p>
+    <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #00e0ff; color: #000000; text-decoration: none; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Recharge Now</a>
+  `);
+
+  await sendEmail(
+    to,
+    'Account Suspended — Recharge Required',
+    html,
+    `Your AI credits are at $0. All mutations paused. Recharge at ${dashboardUrl} to resume.`
+  );
+}
+
+export async function sendCloudCostWarningEmail(
+  to: string,
+  currentSpendCents: number,
+  inclusionCents: number
+) {
+  const dashboardUrl = `${appUrl}/dashboard`;
+  const spendStr = `$${(currentSpendCents / 100).toFixed(2)}`;
+  const inclusionStr = `$${(inclusionCents / 100).toFixed(2)}`;
+  const percent = Math.round((currentSpendCents / inclusionCents) * 100);
+
+  const html = emailWrapper(`
+    <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #fbbf24;">AWS Compute Spend Approaching Limit</h2>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Your AWS compute spend is at ${percent}% of your monthly ${inclusionStr} inclusion. Overage charges will apply after exceeding the limit.</p>
+    <div style="margin-bottom: 24px; padding: 16px; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2); border-radius: 4px;">
+      <div style="width: 100%; background: #27272a; border-radius: 4px; height: 8px; margin-bottom: 8px;">
+        <div style="width: ${percent}%; background: #fbbf24; height: 100%; border-radius: 4px;"></div>
+      </div>
+      <p style="color: #d4d4d8; font-size: 13px; margin: 0;">${spendStr} / ${inclusionStr} (${percent}%)</p>
+    </div>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">After ${inclusionStr}, compute costs are billed at cost + 20% on your next invoice.</p>
+    <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #00e0ff; color: #000000; text-decoration: none; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">View Dashboard</a>
+  `);
+
+  await sendEmail(
+    to,
+    'AWS Spend Approaching Limit — ClawMore',
+    html,
+    `Your AWS spend is ${spendStr} / ${inclusionStr} (${percent}%). Overage charges apply after ${inclusionStr}. View at ${dashboardUrl}`
+  );
+}
+
+export async function sendAutoTopupSuccessEmail(
+  to: string,
+  topupAmountCents: number,
+  newBalanceCents: number
+) {
+  const dashboardUrl = `${appUrl}/dashboard?tab=account`;
+  const topupStr = `$${(topupAmountCents / 100).toFixed(2)}`;
+  const balanceStr = `$${(newBalanceCents / 100).toFixed(2)}`;
+
+  const html = emailWrapper(`
+    <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #34d399;">Auto Top-Up Successful</h2>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Your AI credits have been automatically recharged.</p>
+    <div style="margin-bottom: 24px; padding: 16px; background: rgba(52,211,153,0.05); border: 1px solid rgba(52,211,153,0.2); border-radius: 4px;">
+      <p style="color: #d4d4d8; font-size: 13px; margin: 0 0 4px;">Charged: <strong style="color: #34d399;">${topupStr}</strong></p>
+      <p style="color: #d4d4d8; font-size: 13px; margin: 0;">New balance: <strong style="color: #34d399;">${balanceStr}</strong></p>
+    </div>
+    <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #00e0ff; color: #000000; text-decoration: none; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">View Dashboard</a>
+  `);
+
+  await sendEmail(
+    to,
+    'Auto Top-Up Successful — ClawMore',
+    html,
+    `Auto top-up: charged ${topupStr}. New balance: ${balanceStr}. View at ${dashboardUrl}`
+  );
+}
+
+export async function sendAutoTopupFailedEmail(
+  to: string,
+  topupAmountCents: number
+) {
+  const dashboardUrl = `${appUrl}/dashboard?tab=account`;
+  const topupStr = `$${(topupAmountCents / 100).toFixed(2)}`;
+
+  const html = emailWrapper(`
+    <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #f87171;">Auto Top-Up Failed</h2>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">We tried to charge your card ${topupStr} but the payment failed. Your account may be suspended if credits reach $0.</p>
+    <p style="color: #a1a1aa; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Please update your payment method or recharge manually.</p>
+    <a href="${dashboardUrl}" style="display: inline-block; padding: 16px 32px; background-color: #00e0ff; color: #000000; text-decoration: none; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Update Payment</a>
+  `);
+
+  await sendEmail(
+    to,
+    'Auto Top-Up Failed — ClawMore',
+    html,
+    `Auto top-up of ${topupStr} failed. Update payment at ${dashboardUrl} to avoid suspension.`
+  );
+}

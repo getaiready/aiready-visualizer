@@ -196,3 +196,63 @@ export async function createFuelPackCheckout(
     },
   });
 }
+
+/**
+ * Charges a customer's saved payment method for auto-topup.
+ * Uses off-session payment (requires setup_future_usage on original checkout).
+ * Returns true if payment succeeded, false if it failed.
+ */
+export async function chargeAutoTopup(
+  customerId: string,
+  amountCents: number,
+  description: string
+): Promise<boolean> {
+  try {
+    // Get the customer's default payment method
+    const customer = await getStripe().customers.retrieve(customerId);
+    const defaultPaymentMethod = (customer as Stripe.Customer).invoice_settings
+      ?.default_payment_method;
+
+    if (!defaultPaymentMethod) {
+      log.warn({ customerId }, 'No default payment method for auto-topup');
+      return false;
+    }
+
+    // Create and confirm a payment intent off-session
+    const paymentIntent = await getStripe().paymentIntents.create({
+      amount: amountCents,
+      currency: 'usd',
+      customer: customerId,
+      payment_method: defaultPaymentMethod as string,
+      off_session: true,
+      confirm: true,
+      description,
+      metadata: {
+        type: 'auto_topup',
+        amountCents: amountCents.toString(),
+      },
+    });
+
+    if (paymentIntent.status === 'succeeded') {
+      log.info({ customerId, amountCents }, 'Auto-topup payment succeeded');
+      return true;
+    }
+
+    log.warn(
+      { customerId, status: paymentIntent.status },
+      'Auto-topup payment did not succeed'
+    );
+    return false;
+  } catch (error: any) {
+    // If the card requires authentication, we can't do off-session
+    if (error?.code === 'authentication_required') {
+      log.warn(
+        { customerId },
+        'Auto-topup requires authentication — cannot charge off-session'
+      );
+    } else {
+      log.error({ err: error, customerId }, 'Auto-topup charge failed');
+    }
+    return false;
+  }
+}
