@@ -35,7 +35,7 @@ test.describe('ClawMore SEO Metadata', () => {
 
     // Icons
     await expect(
-      page.locator('link[rel="icon"][href*="logo-raw-512.png"]')
+      page.locator('link[rel="icon"][href*="logo-raw-512.png"]').first()
     ).toBeAttached();
   });
 
