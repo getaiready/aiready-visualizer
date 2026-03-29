@@ -591,8 +591,6 @@ publish-vscode: ## Publish VS Code extension to Marketplace (requires VSCE_PAT e
 		exit 1; \
 	fi; \
 	cd vscode-extension && \
-	echo "[INFO] Bumping version..." && \
-	npm version $(if $(TYPE),$(TYPE),patch) --no-git-tag-version --workspaces-update=false && \
 	pnpm run compile && \
 	echo "[INFO] Publishing to VS Code Marketplace..." && \
 	VSCE_PAT="$$VSCE_PAT" npx @vscode/vsce publish --no-dependencies --allow-star-activation && \
