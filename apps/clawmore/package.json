@@ -1,6 +1,6 @@
 {
   "name": "@aiready/clawmore",
-  "version": "0.3.39",
+  "version": "0.3.40",
   "private": true,
   "scripts": {
     "dev": "sst dev --mode=mono --stage local",
@@ -39,7 +39,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "reactflow": "^11.11.4",
-    "sst": "4.3.1",
+    "sst": "4.6.9",
     "stripe": "^20.4.1",
     "tiktoken": "^1.0.22",
     "tiktoken-node": "^0.0.7",

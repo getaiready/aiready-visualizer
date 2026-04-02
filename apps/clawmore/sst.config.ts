@@ -19,7 +19,9 @@ export default $config({
       removal: input?.stage === 'production' ? 'retain' : 'remove',
       home: 'aws',
       providers: {
-        stripe: true,
+        stripe: {
+          version: '~> 0.0.28',
+        },
       },
     };
   },
