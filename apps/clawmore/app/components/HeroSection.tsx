@@ -43,17 +43,22 @@ export default function HeroSection({ onOpenBeta }: HeroSectionProps) {
           <span>Automated AWS Management • AI-Powered Fixes</span>
         </div>
 
-        <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter mb-4 sm:mb-10 bg-gradient-to-r from-[#00e0ff] to-[#bc00ff] bg-clip-text text-transparent leading-[1.1] sm:leading-[1.1] pb-3 sm:pb-4 drop-shadow-[0_10px_60px_rgba(0,0,0,1)]">
-          ClawMore: OpenClaw but More
-          <br />
-          <span className="italic text-2xl sm:text-4xl md:text-5xl lg:text-6xl block mt-4 opacity-90">
-            the self evolving, infinitely scaling, never dying claw.
+        <h1 className="mb-4 sm:mb-10 drop-shadow-[0_10px_60px_rgba(0,0,0,1)]">
+          <span className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter bg-gradient-to-r from-[#00e0ff] to-[#bc00ff] bg-clip-text text-transparent block leading-[1.1] pb-2">
+            Clawmore
+          </span>
+          <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight block mt-3 bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(0,224,255,0.3)]">
+            OpenClaw but More
+          </span>
+          <span className="text-xl sm:text-2xl md:text-3xl font-medium tracking-wide block mt-5 italic text-transparent bg-gradient-to-r from-cyan-300/80 via-white/70 to-purple-300/80 bg-clip-text relative">
+            <span className="absolute inset-0 bg-gradient-to-r from-cyan-300/20 via-white/10 to-purple-300/20 blur-xl -z-10" />
+            The self evolving, infinitely scaling, never dying claw.
           </span>
         </h1>
 
         <p className="text-xl sm:text-2xl text-white/90 max-w-4xl mx-auto mb-10 sm:mb-14 leading-relaxed font-light drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">
           The first autonomous system for{' '}
-          <strong>Multi-Human Multi-Agent Collaboration</strong>. OpenClaw
+          <strong>Multi-Human Multi-Agent Collaboration</strong>. ClawMore
           automatically synthesizes, optimizes, and evolves your AWS
           infrastructure through agentic swarms that scale only when needed.
         </p>
