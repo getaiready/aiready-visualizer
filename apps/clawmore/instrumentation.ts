@@ -40,3 +40,11 @@ export async function register() {
     });
   }
 }
+
+export async function onRequestError(
+  err: unknown,
+  request: unknown,
+  context: unknown
+) {
+  Sentry.captureRequestError(err, request as any, context as any);
+}

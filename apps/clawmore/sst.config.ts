@@ -29,9 +29,7 @@ export default $config({
     // Configure the Stripe provider explicitly
     const stripeProvider = new stripe.Provider('StripeProvider', {
       apiKey:
-        process.env.STRIPE_SECRET_KEY || $app.stage === 'local'
-          ? 'sk_test_mock'
-          : undefined,
+        $app.stage === 'local' ? 'sk_test_mock' : process.env.STRIPE_SECRET_KEY,
     });
 
     const domainName = isProd ? 'clawmore.ai' : `${$app.stage}.clawmore.ai`;
