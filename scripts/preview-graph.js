@@ -23,16 +23,17 @@ const severityColor = {
   info: '#60a5fa',
 };
 
-for (const p of patterns) {
-  const id = String(p.fileName);
+for (const pattern of patterns) {
+  const id = String(pattern.fileName);
   const label = id.split('/').slice(-2).join('/');
-  const issues = Array.isArray(p.issues) ? p.issues : [];
+  const issues = Array.isArray(pattern.issues) ? pattern.issues : [];
   let top = 'info';
-  for (const it of issues) {
-    const s = (it.severity || 'info').toLowerCase();
-    if ((severityRank[s] || 0) > (severityRank[top] || 0)) top = s;
+  for (const issue of issues) {
+    const severity = (issue.severity || 'info').toLowerCase();
+    if ((severityRank[severity] || 0) > (severityRank[top] || 0))
+      top = severity;
   }
-  const tokenCost = (p.metrics && p.metrics.tokenCost) || 0;
+  const tokenCost = (pattern.metrics && pattern.metrics.tokenCost) || 0;
   const size = Math.round(
     10 + Math.min(40, Math.log(Math.max(1, tokenCost)) * 6 + issues.length * 2)
   );
@@ -41,13 +42,13 @@ for (const p of patterns) {
 
 const pathRegex = /to\s+([^\s)]+)/g;
 const builtLinks = [];
-for (const p of patterns) {
-  const source = String(p.fileName);
-  for (const it of p.issues || []) {
-    const msg = String(it.message || '');
-    let m;
-    while ((m = pathRegex.exec(msg))) {
-      const targetPath = m[1];
+for (const pattern of patterns) {
+  const source = String(pattern.fileName);
+  for (const issue of pattern.issues || []) {
+    const message = String(issue.message || '');
+    let match;
+    while ((match = pathRegex.exec(message))) {
+      const targetPath = match[1];
       const tgt = targetPath.replace(/[),]$/g, '');
       if (fileMap.has(tgt)) {
         builtLinks.push({ source, target: tgt });
