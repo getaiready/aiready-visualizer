@@ -31,6 +31,7 @@
     "web/public"
   ],
   "scripts": {
+    "preinstall": "mkdir -p dist && touch dist/cli.js",
     "dev": "tsup --watch",
     "lint": "eslint src web/src --ext .ts,.tsx,.js,.jsx",
     "dev:web": "cd web && vite",
